@@ -1,0 +1,24 @@
+# FROM node:18
+FROM node:22
+# Set working directory
+WORKDIR /app
+
+# Install nodemon globally (for dev hot reload)
+RUN npm install -g nodemon
+
+# Copy package.json first
+COPY package*.json ./
+
+# Install all dependencies (not only production)
+RUN npm install
+
+# Copy rest of the code
+COPY . .
+
+# Expose port
+EXPOSE 5000
+
+# Run with nodemon
+CMD ["nodemon", "src/server.js"]
+
+
