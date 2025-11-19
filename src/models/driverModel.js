@@ -1261,6 +1261,16 @@ async updateDriverLoginStatus(driverId) {
       `;
   return db.query(query, [driverId]);
 },
+async updateDriverLogoutStatus(id) {
+  const query = `
+    UPDATE drivers
+    SET session_status = 'logged_out'
+    WHERE id = $1
+  `;
+  await db.query(query, [id]);
+  return true;
+},
+
 };
 
 module.exports = Driver;

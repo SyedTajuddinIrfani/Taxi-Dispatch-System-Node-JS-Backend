@@ -959,3 +959,32 @@ exports.verifyDriverToken = async (req, res) => {
     });
   }
 };
+
+exports.driverLogout = async (req, res) => {
+  const { id } = req.params;
+
+  if (!id) {
+    return res.status(400).json({ message: "driverId is required" });
+  }
+
+  try {
+    // STEP 1: Check if driver exists
+    const driver = await Driver.getById(id);
+    if (!driver) {
+      return res.status(404).json({ message: "Driver not found" });
+    }
+
+    // STEP 2: Update session status to logged_out
+    await Driver.updateDriverLogoutStatus(id);
+
+    return res.status(200).json({
+      message: "Logout successful",
+      driverId: id,
+      session_status: "logged_out",
+    });
+
+  } catch (error) {
+    console.error("Logout Error:", error);
+    res.status(500).json({ message: "An error occurred during logout" });
+  }
+};
