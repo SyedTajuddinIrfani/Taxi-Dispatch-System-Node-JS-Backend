@@ -157,9 +157,9 @@ module.exports = {
       const data = req.body;
 
       console.log(
-      "🚀 INCOMING CUSTOMER UPDATE BODY:",
-      JSON.stringify(req.body, null, 2)
-    );
+        "🚀 INCOMING CUSTOMER UPDATE BODY:",
+        JSON.stringify(req.body, null, 2)
+      );
 
       // Step 1: Update normal fields dynamically
       await Customer.update(id, data);
@@ -218,6 +218,33 @@ module.exports = {
     } catch (err) {
       console.error("❌ Error deleting customer:", err);
       res.status(500).json({ status: false, error: err.message });
+    }
+  },
+  searchCustomerByMobile: async (req, res) => {
+    try {
+      const { mobile } = req.query;
+
+      if (!mobile) {
+        return res.status(400).json({
+          status: false,
+          message: "Mobile number is required",
+        });
+      }
+
+      const customer = await Customer.searchByMobile(mobile);
+
+      return res.status(200).json({
+        status: true,
+        count: customer.length,
+
+        customer: customer || [],
+      });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        status: false,
+        message: "Internal Server Error",
+      });
     }
   },
 };

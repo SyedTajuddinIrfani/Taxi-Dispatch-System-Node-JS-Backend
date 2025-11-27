@@ -134,3 +134,21 @@ exports.deleteAccount = async (req, res) => {
     res.status(500).json({ status: false, error: err.message });
   }
 };
+
+exports.getAccountsBySubsidiary = async (req, res) => {
+  try {
+    const { subsidiary_id } = req.params;
+
+    const accounts = await Account.getAccountsBySubsidiary(subsidiary_id);
+
+    return res.json({
+      status: true,
+      count: accounts.length,
+      accounts
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ status: false, error: err.message });
+  }
+};

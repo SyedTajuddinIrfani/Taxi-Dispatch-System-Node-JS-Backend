@@ -2,6 +2,7 @@ require("dotenv").config();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const Employee = require("../models/employeeModel");
+const EmployeeExtension = require("../models/employeeExtensionsModel");
 const Role = require("../models/roleModel");
 const pool = require("../db");
 
@@ -247,6 +248,75 @@ const remove = async (req, res) => {
   }
 };
 
+// const login = async (req, res) => {
+//   try {
+//     const { username, password } = req.body;
+//     console.log(
+//       "🚀 INCOMING EMPLOYEE LOGIN BODY:",
+//       JSON.stringify(req.body, null, 2)
+//     );
+//     if (!username || !password) {
+//       return res.status(400).json({
+//         status: false,
+//         message: "Username and password are required",
+//       });
+//     }
+
+//     // Find user
+//     const employee = await Employee.getByUsername(username.toLowerCase());
+//     if (!employee) {
+//       return res
+//         .status(401)
+//         .json({ status: false, message: "Invalid username or password" });
+//     }
+
+//     // Compare passwords
+//     const match = await bcrypt.compare(password, employee.password);
+//     if (!match) {
+//       return res
+//         .status(401)
+//         .json({ status: false, message: "Invalid username or password" });
+//     }
+
+//     // Fetch role + subsidiary
+//     const roleResult = await pool.query(
+//       "SELECT name FROM roles WHERE id = $1",
+//       [employee.role_id]
+//     );
+//     const subResult = await pool.query(
+//       "SELECT name FROM subsidiaries WHERE id = $1",
+//       [employee.subsidiary_id]
+//     );
+
+//     const fullEmployee = {
+//       ...employee,
+//       role: roleResult.rows[0] ? { name: roleResult.rows[0].name } : null,
+//       subsidiary: subResult.rows[0] ? { name: subResult.rows[0].name } : null,
+//     };
+
+//     // Generate token
+//     const token = jwt.sign(
+//       {
+//         id: employee.id,
+//         username: employee.username,
+//         role_id: employee.role_id,
+//       },
+//       JWT_SECRET,
+//       { expiresIn: "7d" }
+//     );
+
+//     res.status(200).json({
+//       status: true,
+//       message: "Login successful",
+//       token,
+//       employee: fullEmployee,
+//     });
+//   } catch (err) {
+//     console.error("Error logging in:", err);
+//     res.status(500).json({ status: false, message: "Server error" });
+//   }
+// };
+
 const login = async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -254,6 +324,7 @@ const login = async (req, res) => {
       "🚀 INCOMING EMPLOYEE LOGIN BODY:",
       JSON.stringify(req.body, null, 2)
     );
+
     if (!username || !password) {
       return res.status(400).json({
         status: false,
@@ -282,15 +353,30 @@ const login = async (req, res) => {
       "SELECT name FROM roles WHERE id = $1",
       [employee.role_id]
     );
+
     const subResult = await pool.query(
       "SELECT name FROM subsidiaries WHERE id = $1",
       [employee.subsidiary_id]
     );
 
+    // 🔥 Fetch extensions for this employee
+    const extQuery = `
+      SELECT ee.*, 
+        json_build_object(
+          'id', e.id,
+          'username', e.username
+        ) AS employee
+      FROM employee_extensions ee
+      LEFT JOIN employees e ON e.id = ee.employee_id
+      WHERE ee.employee_id = $1
+    `;
+    const extResult = await pool.query(extQuery, [employee.id]);
+
     const fullEmployee = {
       ...employee,
       role: roleResult.rows[0] ? { name: roleResult.rows[0].name } : null,
       subsidiary: subResult.rows[0] ? { name: subResult.rows[0].name } : null,
+      employee_extensions: extResult.rows, // ← Added extensions here
     };
 
     // Generate token

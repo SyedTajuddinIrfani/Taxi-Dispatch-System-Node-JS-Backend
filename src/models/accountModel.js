@@ -1,23 +1,23 @@
-const db = require('../db');
-const bcrypt = require('bcrypt');
+const db = require("../db");
+const bcrypt = require("bcrypt");
 
-  exports.createAccountWithRelations = async (data) => {
-    try {
-      await db.query('BEGIN');
+exports.createAccountWithRelations = async (data) => {
+  try {
+    await db.query("BEGIN");
 
-      // Clean empty fields
-      Object.keys(data).forEach(key => {
-        if (data[key] === '' || data[key] === undefined) data[key] = null;
-      });
+    // Clean empty fields
+    Object.keys(data).forEach((key) => {
+      if (data[key] === "" || data[key] === undefined) data[key] = null;
+    });
 
-      // 🔐 Hash main account password (if provided)
-      let hashedPassword = null;
-      if (data.password) {
-        const saltRounds = 10;
-        hashedPassword = await bcrypt.hash(data.password, saltRounds);
-      }
+    // 🔐 Hash main account password (if provided)
+    let hashedPassword = null;
+    if (data.password) {
+      const saltRounds = 10;
+      hashedPassword = await bcrypt.hash(data.password, saltRounds);
+    }
 
-      const accountQuery = `
+    const accountQuery = `
         INSERT INTO accounts (
           subsidiary_id, subsidiary_bank_account_id, account_type, closed,
           name, code, email, password, mobile, telephone, fax, website,
@@ -39,95 +39,136 @@ const bcrypt = require('bcrypt');
         RETURNING *;
       `;
 
-      const values = [
-        data.subsidiary_id, data.subsidiary_bank_account_id, data.account_type, data.closed,
-        data.name, data.code, data.email, hashedPassword, data.mobile, data.telephone,
-        data.fax, data.website, data.account_number, data.credit_card, data.address,
-        data.payment_types, data.information, data.contact_name, data.background_color,
-        data.foreground_color, data.agent_commission_type, data.agent_commission,
-        data.admin_fees_type, data.admin_fees, data.account_fees_type, data.account_fees,
-        data.has_booked_by, data.fare_controller, data.has_escort, data.has_vat,
-        data.admin_fees_vat, data.account_fees_vat, data.has_order_number,
-        data.dispatch_customer_text, data.confirmation_text, data.arrival_text,
-        data.clear_job_text, data.bank_information
-      ];
+    const values = [
+      data.subsidiary_id,
+      data.subsidiary_bank_account_id,
+      data.account_type,
+      data.closed,
+      data.name,
+      data.code,
+      data.email,
+      hashedPassword,
+      data.mobile,
+      data.telephone,
+      data.fax,
+      data.website,
+      data.account_number,
+      data.credit_card,
+      data.address,
+      data.payment_types,
+      data.information,
+      data.contact_name,
+      data.background_color,
+      data.foreground_color,
+      data.agent_commission_type,
+      data.agent_commission,
+      data.admin_fees_type,
+      data.admin_fees,
+      data.account_fees_type,
+      data.account_fees,
+      data.has_booked_by,
+      data.fare_controller,
+      data.has_escort,
+      data.has_vat,
+      data.admin_fees_vat,
+      data.account_fees_vat,
+      data.has_order_number,
+      data.dispatch_customer_text,
+      data.confirmation_text,
+      data.arrival_text,
+      data.clear_job_text,
+      data.bank_information,
+    ];
 
-      const accountRes = await db.query(accountQuery, values);
-      const account = accountRes.rows[0];
-      const accountId = account.id;
+    const accountRes = await db.query(accountQuery, values);
+    const account = accountRes.rows[0];
+    const accountId = account.id;
 
-      // 🔹 Insert related tables
+    // 🔹 Insert related tables
 
-      // --- Web Logins ---
-      if (Array.isArray(data.web_logins)) {
-        for (const login of data.web_logins) {
-          let webLoginPassword = null;
-          if (login.password) {
-            webLoginPassword = await bcrypt.hash(login.password, 10);
-          }
-          await db.query(
-            `INSERT INTO web_logins (account_id, account_number, username, password, mobile, telephone)
+    // --- Web Logins ---
+    if (Array.isArray(data.web_logins)) {
+      for (const login of data.web_logins) {
+        let webLoginPassword = null;
+        if (login.password) {
+          webLoginPassword = await bcrypt.hash(login.password, 10);
+        }
+        await db.query(
+          `INSERT INTO web_logins (account_id, account_number, username, password, mobile, telephone)
             VALUES ($1,$2,$3,$4,$5,$6)`,
-            [accountId, login.account_number, login.username, webLoginPassword, login.mobile, login.telephone]
-          );
-        }
+          [
+            accountId,
+            login.account_number,
+            login.username,
+            webLoginPassword,
+            login.mobile,
+            login.telephone,
+          ]
+        );
       }
-
-      // --- Departments ---
-      if (Array.isArray(data.departments)) {
-        for (const dept of data.departments) {
-          await db.query(
-            `INSERT INTO departments (account_id, name) VALUES ($1,$2)`,
-            [accountId, dept.name]
-          );
-        }
-      }
-
-      // --- Contacts ---
-      if (Array.isArray(data.contacts)) {
-        for (const contact of data.contacts) {
-          let contactPassword = null;
-          if (contact.password) {
-            contactPassword = await bcrypt.hash(contact.password, 10);
-          }
-          await db.query(
-            `INSERT INTO contacts (account_id, name, email, password, mobile, telephone)
-            VALUES ($1,$2,$3,$4,$5,$6)`,
-            [accountId, contact.name, contact.email, contactPassword, contact.mobile, contact.telephone]
-          );
-        }
-      }
-
-      // --- Order Numbers ---
-      if (Array.isArray(data.order_numbers)) {
-        for (const order of data.order_numbers) {
-          await db.query(
-            `INSERT INTO order_numbers (account_id, order_number)
-            VALUES ($1,$2)`,
-            [accountId, order.order_number]
-          );
-        }
-      }
-
-      // --- Company Addresses ---
-      if (Array.isArray(data.company_addresses)) {
-        for (const addr of data.company_addresses) {
-          await db.query(
-            `INSERT INTO company_addresses (account_id, address)
-            VALUES ($1,$2)`,
-            [accountId, addr.address]
-          );
-        }
-      }
-
-      await db.query('COMMIT');
-      return account;
-    } catch (err) {
-      await db.query('ROLLBACK');
-      throw err;
     }
-  };
 
+    // --- Departments ---
+    if (Array.isArray(data.departments)) {
+      for (const dept of data.departments) {
+        await db.query(
+          `INSERT INTO departments (account_id, name) VALUES ($1,$2)`,
+          [accountId, dept.name]
+        );
+      }
+    }
+
+    // --- Contacts ---
+    if (Array.isArray(data.contacts)) {
+      for (const contact of data.contacts) {
+        let contactPassword = null;
+        if (contact.password) {
+          contactPassword = await bcrypt.hash(contact.password, 10);
+        }
+        await db.query(
+          `INSERT INTO contacts (account_id, name, email, password, mobile, telephone)
+            VALUES ($1,$2,$3,$4,$5,$6)`,
+          [
+            accountId,
+            contact.name,
+            contact.email,
+            contactPassword,
+            contact.mobile,
+            contact.telephone,
+          ]
+        );
+      }
+    }
+
+    // --- Order Numbers ---
+    if (Array.isArray(data.order_numbers)) {
+      for (const order of data.order_numbers) {
+        await db.query(
+          `INSERT INTO order_numbers (account_id, order_number)
+            VALUES ($1,$2)`,
+          [accountId, order.order_number]
+        );
+      }
+    }
+
+    // --- Company Addresses ---
+    if (Array.isArray(data.company_addresses)) {
+      for (const addr of data.company_addresses) {
+        await db.query(
+          `INSERT INTO company_addresses (account_id, address)
+            VALUES ($1,$2)`,
+          [accountId, addr.address]
+        );
+      }
+    }
+
+    await db.query("COMMIT");
+    return account;
+  } catch (err) {
+    await db.query("ROLLBACK");
+    throw err;
+  }
+};
 
 // --- GET ACCOUNTS WITH JOINS + PAGINATION + SEARCH ---
 exports.getAccounts = async ({ offset = 0, limit = 100, filters = {} }) => {
@@ -139,7 +180,7 @@ exports.getAccounts = async ({ offset = 0, limit = 100, filters = {} }) => {
     mobile,
     telephone,
     contact_name,
-    subsidiary
+    subsidiary,
   } = filters;
 
   const conditions = [];
@@ -180,7 +221,9 @@ exports.getAccounts = async ({ offset = 0, limit = 100, filters = {} }) => {
     params.push(`%${subsidiary}%`);
   }
 
-  const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const whereClause = conditions.length
+    ? `WHERE ${conditions.join(" AND ")}`
+    : "";
 
   // --- Total count for pagination ---
   const countQuery = `
@@ -220,7 +263,8 @@ exports.getAccounts = async ({ offset = 0, limit = 100, filters = {} }) => {
 
 // --- GET SINGLE ACCOUNT WITH RELATIONS ---
 exports.getAccountById = async (id) => {
-  const result = await db.query(`
+  const result = await db.query(
+    `
     SELECT
       a.*,
       COALESCE(json_agg(DISTINCT wl.*) FILTER (WHERE wl.id IS NOT NULL), '[]') AS web_logins,
@@ -236,20 +280,20 @@ exports.getAccountById = async (id) => {
     LEFT JOIN company_addresses ca ON ca.account_id = a.id
     WHERE a.id = $1
     GROUP BY a.id;
-  `, [id]);
+  `,
+    [id]
+  );
   return result.rows[0];
 };
-
-
 
 // Update account with all nested relations
 exports.updateAccountWithRelations = async (id, data) => {
   try {
-    await db.query('BEGIN');
+    await db.query("BEGIN");
 
     // 🧩 Clean up empty fields
-    Object.keys(data).forEach(key => {
-      if (data[key] === '' || data[key] === undefined) data[key] = null;
+    Object.keys(data).forEach((key) => {
+      if (data[key] === "" || data[key] === undefined) data[key] = null;
     });
 
     // 🧩 Hash password if new one provided
@@ -266,16 +310,17 @@ exports.updateAccountWithRelations = async (id, data) => {
     for (const [key, value] of Object.entries(data)) {
       if (
         [
-          'web_logins',
-          'departments',
-          'contacts',
-          'order_numbers',
-          'company_addresses'
+          "web_logins",
+          "departments",
+          "contacts",
+          "order_numbers",
+          "company_addresses",
         ].includes(key)
-      ) continue; // skip child tables
+      )
+        continue; // skip child tables
 
       fields.push(`${key} = $${index++}`);
-      if (key === 'password' && hashedPassword) {
+      if (key === "password" && hashedPassword) {
         values.push(hashedPassword);
       } else {
         values.push(value);
@@ -285,7 +330,7 @@ exports.updateAccountWithRelations = async (id, data) => {
     if (fields.length > 0) {
       values.push(id);
       await db.query(
-        `UPDATE accounts SET ${fields.join(', ')} WHERE id = $${values.length}`,
+        `UPDATE accounts SET ${fields.join(", ")} WHERE id = $${values.length}`,
         values
       );
     }
@@ -293,7 +338,7 @@ exports.updateAccountWithRelations = async (id, data) => {
     // 🧩 Handle child tables only if they are included in payload
 
     if (Array.isArray(data.web_logins)) {
-      await db.query('DELETE FROM web_logins WHERE account_id = $1', [id]);
+      await db.query("DELETE FROM web_logins WHERE account_id = $1", [id]);
       for (const w of data.web_logins) {
         const pass = w.password ? await bcrypt.hash(w.password, 10) : null;
         await db.query(
@@ -305,7 +350,7 @@ exports.updateAccountWithRelations = async (id, data) => {
     }
 
     if (Array.isArray(data.departments)) {
-      await db.query('DELETE FROM departments WHERE account_id = $1', [id]);
+      await db.query("DELETE FROM departments WHERE account_id = $1", [id]);
       for (const d of data.departments) {
         await db.query(
           `INSERT INTO departments (account_id, name)
@@ -316,7 +361,7 @@ exports.updateAccountWithRelations = async (id, data) => {
     }
 
     if (Array.isArray(data.contacts)) {
-      await db.query('DELETE FROM contacts WHERE account_id = $1', [id]);
+      await db.query("DELETE FROM contacts WHERE account_id = $1", [id]);
       for (const c of data.contacts) {
         const pass = c.password ? await bcrypt.hash(c.password, 10) : null;
         await db.query(
@@ -328,7 +373,7 @@ exports.updateAccountWithRelations = async (id, data) => {
     }
 
     if (Array.isArray(data.order_numbers)) {
-      await db.query('DELETE FROM order_numbers WHERE account_id = $1', [id]);
+      await db.query("DELETE FROM order_numbers WHERE account_id = $1", [id]);
       for (const o of data.order_numbers) {
         await db.query(
           `INSERT INTO order_numbers (account_id, order_number)
@@ -339,7 +384,9 @@ exports.updateAccountWithRelations = async (id, data) => {
     }
 
     if (Array.isArray(data.company_addresses)) {
-      await db.query('DELETE FROM company_addresses WHERE account_id = $1', [id]);
+      await db.query("DELETE FROM company_addresses WHERE account_id = $1", [
+        id,
+      ]);
       for (const a of data.company_addresses) {
         await db.query(
           `INSERT INTO company_addresses (account_id, address)
@@ -349,33 +396,61 @@ exports.updateAccountWithRelations = async (id, data) => {
       }
     }
 
-    await db.query('COMMIT');
+    await db.query("COMMIT");
 
-    const updatedAccount = await db.query('SELECT * FROM accounts WHERE id = $1', [id]);
+    const updatedAccount = await db.query(
+      "SELECT * FROM accounts WHERE id = $1",
+      [id]
+    );
     return updatedAccount.rows[0];
   } catch (err) {
-    await db.query('ROLLBACK');
+    await db.query("ROLLBACK");
     throw err;
   }
 };
 
-
 // Delete account with all child relations
 exports.deleteAccountWithRelations = async (id) => {
   try {
-    await db.query('BEGIN');
+    await db.query("BEGIN");
 
-    await db.query('DELETE FROM web_logins WHERE account_id = $1', [id]);
-    await db.query('DELETE FROM departments WHERE account_id = $1', [id]);
-    await db.query('DELETE FROM contacts WHERE account_id = $1', [id]);
-    await db.query('DELETE FROM order_numbers WHERE account_id = $1', [id]);
-    await db.query('DELETE FROM company_addresses WHERE account_id = $1', [id]);
-    const result = await db.query('DELETE FROM accounts WHERE id = $1 RETURNING *', [id]);
+    await db.query("DELETE FROM web_logins WHERE account_id = $1", [id]);
+    await db.query("DELETE FROM departments WHERE account_id = $1", [id]);
+    await db.query("DELETE FROM contacts WHERE account_id = $1", [id]);
+    await db.query("DELETE FROM order_numbers WHERE account_id = $1", [id]);
+    await db.query("DELETE FROM company_addresses WHERE account_id = $1", [id]);
+    const result = await db.query(
+      "DELETE FROM accounts WHERE id = $1 RETURNING *",
+      [id]
+    );
 
-    await db.query('COMMIT');
+    await db.query("COMMIT");
     return result.rows[0];
   } catch (error) {
-    await db.query('ROLLBACK');
+    await db.query("ROLLBACK");
     throw error;
   }
+};
+
+exports.getAccountsBySubsidiary = async (subsidiary_id) => {
+  const query = `
+    SELECT
+      a.*,
+      json_agg(DISTINCT jsonb_build_object('id', d.id, 'name', d.name)) AS departments,
+      jsonb_build_object(
+        'id', s.id,
+        'name', s.name,
+        'telephone_number', s.telephone_number,
+        'email', s.email
+      ) AS subsidiary
+    FROM accounts a
+    LEFT JOIN departments d ON a.id = d.account_id
+    LEFT JOIN subsidiaries s ON a.subsidiary_id = s.id
+    WHERE a.subsidiary_id = $1
+    GROUP BY a.id, s.id
+    ORDER BY a.id ASC;
+  `;
+
+  const result = await db.query(query, [subsidiary_id]);
+  return result.rows;
 };

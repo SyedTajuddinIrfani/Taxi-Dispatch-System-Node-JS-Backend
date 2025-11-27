@@ -106,112 +106,111 @@ module.exports = {
   //   console.log("✅ All restricted drivers inserted successfully!");
   // },
 
-
   setRestrictedDrivers: async (customerId, drivers) => {
-  console.log("🚀 Updating restricted drivers for customer:", customerId);
+    console.log("🚀 Updating restricted drivers for customer:", customerId);
 
-  // Step 1: Clean up old restricted drivers
-  await db.query(
-    `DELETE FROM customer_restricted_drivers WHERE customer_id = $1`,
-    [customerId]
-  );
+    // Step 1: Clean up old restricted drivers
+    await db.query(
+      `DELETE FROM customer_restricted_drivers WHERE customer_id = $1`,
+      [customerId]
+    );
 
-  // Step 2: Defensive check
-  if (!drivers || (Array.isArray(drivers) && drivers.length === 0)) {
-    console.log("ℹ️ No restricted drivers to insert. Done!");
-    return;
-  }
+    // Step 2: Defensive check
+    if (!drivers || (Array.isArray(drivers) && drivers.length === 0)) {
+      console.log("ℹ️ No restricted drivers to insert. Done!");
+      return;
+    }
 
-  // Step 3: Normalize input (convert strings → objects)
-  const normalizedDrivers = drivers
-    .map((d) => {
-      if (typeof d === "string") {
-        try {
-          return JSON.parse(d);
-        } catch {
-          console.warn("⚠️ Skipping malformed driver:", d);
-          return null;
+    // Step 3: Normalize input (convert strings → objects)
+    const normalizedDrivers = drivers
+      .map((d) => {
+        if (typeof d === "string") {
+          try {
+            return JSON.parse(d);
+          } catch {
+            console.warn("⚠️ Skipping malformed driver:", d);
+            return null;
+          }
         }
-      }
-      return d;
-    })
-    .filter((d) => d && typeof d === "object");
+        return d;
+      })
+      .filter((d) => d && typeof d === "object");
 
-  if (normalizedDrivers.length === 0) {
-    console.log("ℹ️ No valid restricted drivers found after normalization.");
-    return;
-  }
+    if (normalizedDrivers.length === 0) {
+      console.log("ℹ️ No valid restricted drivers found after normalization.");
+      return;
+    }
 
-  const insertQuery = `
+    const insertQuery = `
     INSERT INTO customer_restricted_drivers (customer_id, driver_id, driver_username, driver_name)
     VALUES ($1, $2, $3, $4)
   `;
 
-  // Step 4: Insert valid drivers
-  for (const driver of normalizedDrivers) {
-    const driverId = parseInt(driver.id, 10);
-    const driverUsername = driver.username || null;
-    const driverName = driver.name || null;
+    // Step 4: Insert valid drivers
+    for (const driver of normalizedDrivers) {
+      const driverId = parseInt(driver.id, 10);
+      const driverUsername = driver.username || null;
+      const driverName = driver.name || null;
 
-    if (!Number.isInteger(driverId)) {
-      console.warn("⚠️ Skipping driver with invalid ID:", driver);
-      continue;
+      if (!Number.isInteger(driverId)) {
+        console.warn("⚠️ Skipping driver with invalid ID:", driver);
+        continue;
+      }
+
+      console.log(
+        `📤 Inserting -> customer_id: ${customerId}, driver_id: ${driverId}, username: ${driverUsername}, name: ${driverName}`
+      );
+
+      try {
+        await db.query(insertQuery, [
+          customerId,
+          driverId,
+          driverUsername,
+          driverName,
+        ]);
+      } catch (err) {
+        console.error("❌ Error inserting driver:", driver, err.message);
+      }
     }
 
-    console.log(
-      `📤 Inserting -> customer_id: ${customerId}, driver_id: ${driverId}, username: ${driverUsername}, name: ${driverName}`
-    );
+    console.log("✅ All restricted drivers updated successfully!");
+  },
 
-    try {
-      await db.query(insertQuery, [
-        customerId,
-        driverId,
-        driverUsername,
-        driverName,
-      ]);
-    } catch (err) {
-      console.error("❌ Error inserting driver:", driver, err.message);
+  update: async (id, data) => {
+    const fields = [];
+    const values = [];
+    let index = 1;
+
+    for (const [key, value] of Object.entries(data)) {
+      // Skip restricted_drivers (handled separately)
+      if (key === "restricted_drivers") continue;
+
+      // Skip undefined or empty string values to preserve existing data
+      if (value === undefined) continue;
+
+      fields.push(`${key} = $${index}`);
+      values.push(value);
+      index++;
     }
-  }
 
-  console.log("✅ All restricted drivers updated successfully!");
-},
+    if (fields.length === 0) {
+      console.log("⚠️ No valid fields to update for customer:", id);
+      return;
+    }
 
- update: async (id, data) => {
-  const fields = [];
-  const values = [];
-  let index = 1;
-
-  for (const [key, value] of Object.entries(data)) {
-    // Skip restricted_drivers (handled separately)
-    if (key === "restricted_drivers") continue;
-
-    // Skip undefined or empty string values to preserve existing data
-    if (value === undefined) continue;
-
-    fields.push(`${key} = $${index}`);
-    values.push(value);
-    index++;
-  }
-
-  if (fields.length === 0) {
-    console.log("⚠️ No valid fields to update for customer:", id);
-    return;
-  }
-
-  const query = `
+    const query = `
     UPDATE customers
     SET ${fields.join(", ")}
     WHERE id = $${index}
   `;
 
-  values.push(id);
+    values.push(id);
 
-  console.log("🧾 Dynamic Update Query:", query);
-  console.log("📦 Values:", values);
+    console.log("🧾 Dynamic Update Query:", query);
+    console.log("📦 Values:", values);
 
-  await db.query(query, values);
-},
+    await db.query(query, values);
+  },
 
   getAll: async ({
     offset = 0,
@@ -281,7 +280,7 @@ module.exports = {
   },
 
   getById: async (id) => {
-  const query = `
+    const query = `
     SELECT 
       c.*,
       COALESCE(
@@ -300,36 +299,47 @@ module.exports = {
     GROUP BY c.id
   `;
 
-  const { rows } = await db.query(query, [id]);
-  return rows[0];
-},
-getRestrictedDrivers: async (customerId) => {
-  const { rows } = await db.query(
-    `SELECT driver_id AS id, driver_username AS username, driver_name AS name
+    const { rows } = await db.query(query, [id]);
+    return rows[0];
+  },
+  getRestrictedDrivers: async (customerId) => {
+    const { rows } = await db.query(
+      `SELECT driver_id AS id, driver_username AS username, driver_name AS name
      FROM customer_restricted_drivers
      WHERE customer_id = $1`,
-    [customerId]
-  );
-  return rows;
-},
-delete: async (id) => {
-  try {
-    // Step 1: Delete all restricted drivers linked to this customer
-    await db.query(
-      `DELETE FROM customer_restricted_drivers WHERE customer_id = $1`,
-      [id]
+      [customerId]
     );
+    return rows;
+  },
+  delete: async (id) => {
+    try {
+      // Step 1: Delete all restricted drivers linked to this customer
+      await db.query(
+        `DELETE FROM customer_restricted_drivers WHERE customer_id = $1`,
+        [id]
+      );
 
-    // Step 2: Delete the customer itself
-    const result = await db.query(`DELETE FROM customers WHERE id = $1`, [id]);
+      // Step 2: Delete the customer itself
+      const result = await db.query(`DELETE FROM customers WHERE id = $1`, [
+        id,
+      ]);
 
-    // Step 3: Return info
-    return result.rowCount > 0; // true if deleted, false if not found
-  } catch (err) {
-    console.error("❌ Error deleting customer:", err);
-    throw err;
-  }
-},
+      // Step 3: Return info
+      return result.rowCount > 0; // true if deleted, false if not found
+    } catch (err) {
+      console.error("❌ Error deleting customer:", err);
+      throw err;
+    }
+  },
+  searchByMobile: async (mobile) => {
+    const query = `
+        SELECT 
+            id, sms_flag, name, mobile, email, telephone
+        FROM customers
+        WHERE mobile LIKE $1
+    `;
 
-
+    const result = await db.query(query, [`%${mobile}%`]);
+    return result.rows;
+  },
 };

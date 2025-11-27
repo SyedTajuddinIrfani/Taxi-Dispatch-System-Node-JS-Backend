@@ -1,13 +1,21 @@
 const db = require("../db");
 
 // ADD EMPLOYEE EXTENSION
-const addEmployeeExtension = async (employee_id, extension_number, permanent_flag) => {
+const addEmployeeExtension = async (
+  employee_id,
+  extension_number,
+  permanent_flag
+) => {
   const query = `
     INSERT INTO employee_extensions (employee_id, extension_number, permanent_flag)
     VALUES ($1, $2, $3)
     RETURNING id, employee_id, extension_number, permanent_flag
   `;
-  const result = await db.query(query, [employee_id, extension_number, permanent_flag]);
+  const result = await db.query(query, [
+    employee_id,
+    extension_number,
+    permanent_flag,
+  ]);
   return result.rows[0];
 };
 
@@ -37,16 +45,32 @@ const getAllEmployeeExtensions = async () => {
   return result.rows;
 };
 
-// UPDATE EMPLOYEE EXTENSION
-const updateEmployeeExtension = async (id, extension_number, permanent_flag) => {
+// UPDATE EMPLOYEE EXTENSION (partial update support)
+const updateEmployeeExtension = async (id, fields) => {
+  const setClauses = [];
+  const values = [];
+  let index = 1;
+
+  for (const key in fields) {
+    if (fields[key] !== undefined) {
+      // only include provided fields
+      setClauses.push(`${key} = $${index}`);
+      values.push(fields[key]);
+      index++;
+    }
+  }
+
+  if (setClauses.length === 0) return null; // nothing to update
+
   const query = `
-    UPDATE employee_extensions 
-    SET extension_number = $1,
-        permanent_flag = $2
-    WHERE id = $3
+    UPDATE employee_extensions
+    SET ${setClauses.join(", ")}
+    WHERE id = $${index}
     RETURNING *
   `;
-  const result = await db.query(query, [extension_number, permanent_flag, id]);
+  values.push(id);
+
+  const result = await db.query(query, values);
   return result.rows[0];
 };
 
@@ -54,13 +78,36 @@ const updateEmployeeExtension = async (id, extension_number, permanent_flag) => 
 const deleteEmployeeExtension = async (id) => {
   const query = `DELETE FROM employee_extensions WHERE id = $1 RETURNING *`;
   const result = await db.query(query, [id]);
+
+  if (result.rows.length === 0) {
+    // agar delete ka record hi nahi mila
+    throw new Error("Employee extension not found");
+  }
+
+  // agar mila aur delete hogaya
   return result.rows[0];
 };
 
+
+const getByEmployeeId = async (employee_id) => {
+  const q = `
+      SELECT ee.*, 
+        json_build_object(
+          'id', e.id,
+          'username', e.username
+        ) AS employee
+      FROM employee_extensions ee
+      LEFT JOIN employees e ON e.id = ee.employee_id
+      WHERE ee.employee_id = $1
+    `;
+  const { rows } = await pool.query(q, [employee_id]);
+  return rows;
+};
 module.exports = {
   addEmployeeExtension,
   getEmployeeExtensionById,
   getAllEmployeeExtensions,
   updateEmployeeExtension,
-  deleteEmployeeExtension
+  deleteEmployeeExtension,
+  getByEmployeeId,
 };
