@@ -3,6 +3,10 @@ const bookingService = require('../services/bookingService');
 
 exports.createBooking = async (req, res) => {
   try {
+    console.log(
+      "🚀 INCOMING DRIVER ADD BODY:",
+      JSON.stringify(req.body, null, 2)
+    );
     const payload = req.body;
     // The real system sometimes sends top-level "booking" array; we accept both shapes.
     const result = await bookingService.create(payload);

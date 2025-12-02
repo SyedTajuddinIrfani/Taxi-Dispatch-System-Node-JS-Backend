@@ -1900,3 +1900,32 @@
 {"duration":1,"level":"info","message":"db-query","rows":1,"text":"\n    SELECT COUNT(*) AS total\n    FROM zones z\n    ;\n  ","timestamp":"2025-11-27T17:54:12.496Z"}
 {"duration":2,"level":"info","message":"db-query","rows":8,"text":"\n    SELECT \n      z.id,\n      z.name,\n      z.secondary_name,\n      z.type,\n      z.category,\n      z.vertices,\n      z.base,\n      z.overlay,\n      z.created_at,\n      z.updated_at\n    FROM zones z\n    \n    ORDER BY z.id ASC\n    LIMIT $1 OFFSET $2;\n  ","timestamp":"2025-11-27T17:54:12.498Z"}
 {"level":"info","message":"GET /api/zones/get 304 3.892 ms","timestamp":"2025-11-27T17:54:12.499Z"}
+{"duration":21,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-11-27T17:55:02.811Z"}
+{"level":"info","message":"GET /api/location-types 200 44.878 ms","timestamp":"2025-11-27T17:55:02.836Z"}
+{"duration":142,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-11-27T17:55:02.943Z"}
+{"level":"info","message":"GET /api/location-types 200 149.023 ms","timestamp":"2025-11-27T17:55:02.947Z"}
+{"duration":3,"level":"info","message":"db-query","rows":0,"text":"DELETE FROM employee_extensions WHERE id = $1 RETURNING *","timestamp":"2025-11-27T17:55:07.127Z"}
+{"level":"info","message":"DELETE /api/employeeextension/delete/3 500 5.394 ms","timestamp":"2025-11-27T17:55:07.129Z"}
+{"duration":5,"level":"info","message":"db-query","rows":1,"text":"DELETE FROM employee_extensions WHERE id = $1 RETURNING *","timestamp":"2025-11-27T17:55:12.269Z"}
+{"level":"info","message":"DELETE /api/employeeextension/delete/1 200 6.478 ms","timestamp":"2025-11-27T17:55:12.270Z"}
+{"duration":2,"level":"info","message":"db-query","rows":1,"text":"\n    SELECT COUNT(*) AS total\n    FROM zones z\n    ;\n  ","timestamp":"2025-11-27T17:55:12.521Z"}
+{"duration":3,"level":"info","message":"db-query","rows":8,"text":"\n    SELECT \n      z.id,\n      z.name,\n      z.secondary_name,\n      z.type,\n      z.category,\n      z.vertices,\n      z.base,\n      z.overlay,\n      z.created_at,\n      z.updated_at\n    FROM zones z\n    \n    ORDER BY z.id ASC\n    LIMIT $1 OFFSET $2;\n  ","timestamp":"2025-11-27T17:55:12.525Z"}
+{"level":"info","message":"GET /api/zones/get 304 7.403 ms","timestamp":"2025-11-27T17:55:12.526Z"}
+{"duration":3,"level":"info","message":"db-query","rows":9,"text":"\n        SELECT \n            id, sms_flag, name, mobile, email, telephone\n        FROM customers\n        WHERE mobile LIKE $1\n    ","timestamp":"2025-11-27T17:55:16.962Z"}
+{"level":"info","message":"GET /api/customers/search?mobile=12 304 4.144 ms","timestamp":"2025-11-27T17:55:16.963Z"}
+{"duration":2,"level":"info","message":"db-query","rows":1,"text":"\n    SELECT COUNT(*) AS total\n    FROM zones z\n    ;\n  ","timestamp":"2025-11-27T17:55:18.397Z"}
+{"duration":5,"level":"info","message":"db-query","rows":8,"text":"\n    SELECT \n      z.id,\n      z.name,\n      z.secondary_name,\n      z.type,\n      z.category,\n      z.vertices,\n      z.base,\n      z.overlay,\n      z.created_at,\n      z.updated_at\n    FROM zones z\n    \n    ORDER BY z.id ASC\n    LIMIT $1 OFFSET $2;\n  ","timestamp":"2025-11-27T17:55:18.403Z"}
+{"level":"info","message":"GET /api/zones/get 304 10.794 ms","timestamp":"2025-11-27T17:55:18.407Z"}
+{"duration":6,"level":"info","message":"db-query","rows":1,"text":"\n    INSERT INTO employee_extensions (employee_id, extension_number, permanent_flag)\n    VALUES ($1, $2, $3)\n    RETURNING id, employee_id, extension_number, permanent_flag\n  ","timestamp":"2025-11-27T17:55:18.966Z"}
+{"duration":1,"level":"info","message":"db-query","rows":1,"text":"\n    SELECT ee.*, \n      json_build_object('id', e.id, 'username', e.username) AS employee\n    FROM employee_extensions ee\n    LEFT JOIN employees e ON e.id = ee.employee_id\n    WHERE ee.employee_id = $1\n  ","timestamp":"2025-11-27T17:55:18.968Z"}
+{"level":"info","message":"POST /api/employeeextension/add 200 9.563 ms","timestamp":"2025-11-27T17:55:18.969Z"}
+{"duration":92,"level":"info","message":"db-query","rows":1,"text":"\n    SELECT COUNT(*) AS total\n    FROM zones z\n    ;\n  ","timestamp":"2025-11-27T17:56:18.674Z"}
+{"duration":2,"level":"info","message":"db-query","rows":8,"text":"\n    SELECT \n      z.id,\n      z.name,\n      z.secondary_name,\n      z.type,\n      z.category,\n      z.vertices,\n      z.base,\n      z.overlay,\n      z.created_at,\n      z.updated_at\n    FROM zones z\n    \n    ORDER BY z.id ASC\n    LIMIT $1 OFFSET $2;\n  ","timestamp":"2025-11-27T17:56:18.677Z"}
+{"level":"info","message":"GET /api/zones/get 304 96.020 ms","timestamp":"2025-11-27T17:56:18.678Z"}
+{"duration":152,"level":"info","message":"db-query","rows":15,"text":"\n        SELECT \n            id, sms_flag, name, mobile, email, telephone\n        FROM customers\n        WHERE mobile LIKE $1\n    ","timestamp":"2025-11-27T17:56:45.348Z"}
+{"level":"info","message":"GET /api/customers/search?mobile=1 304 153.071 ms","timestamp":"2025-11-27T17:56:45.349Z"}
+{"duration":6,"level":"info","message":"db-query","rows":1,"text":"\n    SELECT COUNT(*) AS total\n    FROM zones z\n    ;\n  ","timestamp":"2025-11-27T17:56:46.912Z"}
+{"duration":5,"level":"info","message":"db-query","rows":8,"text":"\n    SELECT \n      z.id,\n      z.name,\n      z.secondary_name,\n      z.type,\n      z.category,\n      z.vertices,\n      z.base,\n      z.overlay,\n      z.created_at,\n      z.updated_at\n    FROM zones z\n    \n    ORDER BY z.id ASC\n    LIMIT $1 OFFSET $2;\n  ","timestamp":"2025-11-27T17:56:46.918Z"}
+{"level":"info","message":"GET /api/zones/get 304 14.532 ms","timestamp":"2025-11-27T17:56:46.921Z"}
+{"duration":75,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-11-27T18:55:02.262Z"}
+{"level":"info","message":"GET /api/location-types 200 76.304 ms","timestamp":"2025-11-27T18:55:02.263Z"}

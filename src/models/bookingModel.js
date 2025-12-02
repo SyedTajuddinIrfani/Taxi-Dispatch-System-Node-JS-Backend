@@ -1,4 +1,3 @@
-// models/bookingModel.js
 const pool = require('../db');
 
 const insertBookingRow = async (client, bookingRow) => {

@@ -5,7 +5,9 @@ const { pool, insertBookingRow, updateBooking, findBookingById } = require('../m
 const DEFAULT_EMPLOYEE_ID = 23; // matches your example responses; change if needed
 
 function genRef() {
-  return crypto.randomBytes(4).toString('hex'); // 8 hex chars like dcb75152
+  let result = "NTG";
+  const digits = Math.floor(10000 + Math.random() * 90000).toString();
+  return result + digits;
 }
 
 function strOrNull(v) {
@@ -59,10 +61,10 @@ function normalizeBookingPayload(src) {
 }
 
 /**
- * Insert single booking row within a transaction using a client.
+ * Insert single booking row within a transaction using a pool.
  * bookingObj = normalized payload object (strings where DB expects text)
  */
-async function createBookingRow(client, bookingObj) {
+async function createBookingRow(pool, bookingObj) {
   // map allowed columns from your table (only include keys that exist in table)
   const allowed = [
     'reference_number','subsidiary_id','booking_type_id','booking_status_id','journey_type_id',
@@ -92,7 +94,7 @@ async function createBookingRow(client, bookingObj) {
   if (!row.booked_at) row.booked_at = new Date();
   if (row.multi_booking_id === undefined) row.multi_booking_id = 0;
 
-  const inserted = await insertBookingRow(client, row);
+  const inserted = await insertBookingRow(pool, row);
   return inserted;
 }
 
@@ -100,15 +102,15 @@ async function createBookingRow(client, bookingObj) {
  * Create simple booking (single booking)
  */
 async function createSimpleBooking(payload) {
-  const client = await pool.connect();
+  
   try {
-    await client.query('BEGIN');
+    await pool.query('BEGIN');
 
     // customer creation/upsert (minimal)
     let customerId = payload.customer_id || null;
     if (!customerId && payload.customer) {
       const c = payload.customer;
-      const res = await client.query(
+      const res = await pool.query(
         `INSERT INTO customers (name,email,mobile,telephone,blacklist)
          VALUES ($1,$2,$3,$4,$5)
          ON CONFLICT (email) DO UPDATE SET mobile = EXCLUDED.mobile
@@ -118,7 +120,7 @@ async function createSimpleBooking(payload) {
       customerId = res.rows[0].id;
     } else if (!customerId && payload.email) {
       // try insert by email minimal
-      const res = await client.query(
+      const res = await pool.query(
         `INSERT INTO customers (name,email,mobile,telephone)
          VALUES ($1,$2,$3,$4)
          ON CONFLICT (email) DO UPDATE SET mobile = EXCLUDED.mobile
@@ -131,15 +133,13 @@ async function createSimpleBooking(payload) {
     const normalized = normalizeBookingPayload(payload);
     if (customerId) normalized.customer_id = customerId;
 
-    const inserted = await createBookingRow(client, normalized);
-    await client.query('COMMIT');
+    const inserted = await createBookingRow(pool, normalized);
+    await pool.query('COMMIT');
 
     return { booking: [inserted] };
   } catch (err) {
-    await client.query('ROLLBACK');
+    await pool.query('ROLLBACK');
     throw err;
-  } finally {
-    client.release();
   }
 }
 
@@ -149,15 +149,15 @@ async function createSimpleBooking(payload) {
  * returns { booking: [primary], return_booking: [returnRow] }
  */
 async function createTwoWayBooking(payload) {
-  const client = await pool.connect();
+
   try {
-    await client.query('BEGIN');
+    await pool.query('BEGIN');
 
     // create customer similar to simple flow
     let customerId = payload.customer_id || null;
     if (!customerId && payload.customer) {
       const c = payload.customer;
-      const res = await client.query(
+      const res = await pool.query(
         `INSERT INTO customers (name,email,mobile,telephone)
          VALUES ($1,$2,$3,$4)
          ON CONFLICT (email) DO UPDATE SET mobile = EXCLUDED.mobile
@@ -171,7 +171,7 @@ async function createTwoWayBooking(payload) {
     if (customerId) normalized.customer_id = customerId;
 
     // create primary booking
-    const primary = await createBookingRow(client, normalized);
+    const primary = await createBookingRow(pool, normalized);
 
     // build return booking: mostly copying primary, swap pickup/dropoff, set associated_booking
     const returnBooking = { ...normalized };
@@ -201,17 +201,15 @@ async function createTwoWayBooking(payload) {
     // reset driver/vehicle maybe - keep as-is or null according to payload
     returnBooking.driver_id = returnBooking.driver_id || null;
 
-    const retInserted = await createBookingRow(client, returnBooking);
+    const retInserted = await createBookingRow(pool, returnBooking);
 
-    await client.query('COMMIT');
+    await pool.query('COMMIT');
 
     return { booking: [primary], return_booking: [retInserted] };
   } catch (err) {
-    await client.query('ROLLBACK');
+    await pool.query('ROLLBACK');
     throw err;
-  } finally {
-    client.release();
-  }
+  } 
 }
 
 /**
@@ -220,15 +218,15 @@ async function createTwoWayBooking(payload) {
  */
 async function createMultiVehicleBooking(payload) {
   // payload.booking = array of entries
-  const client = await pool.connect();
+
   try {
-    await client.query('BEGIN');
+    await pool.query('BEGIN');
 
     // create/get customer
     let customerId = payload.customer_id || null;
     if (!customerId && payload.customer) {
       const c = payload.customer;
-      const res = await client.query(
+      const res = await pool.query(
         `INSERT INTO customers (name,email,mobile,telephone)
          VALUES ($1,$2,$3,$4)
          ON CONFLICT (email) DO UPDATE SET mobile = EXCLUDED.mobile
@@ -239,7 +237,7 @@ async function createMultiVehicleBooking(payload) {
     }
 
     // create a new multi_booking_id (use sequence nextval or timestamp-based id)
-    const multiBookingIdRes = await client.query('SELECT nextval(\'bookings_id_seq\') as nextid');
+    const multiBookingIdRes = await pool.query('SELECT nextval(\'bookings_id_seq\') as nextid');
     const multiBookingId = parseInt(multiBookingIdRes.rows[0].nextid, 10);
 
     const created = [];
@@ -252,18 +250,16 @@ async function createMultiVehicleBooking(payload) {
       if (customerId) normalized.customer_id = customerId;
       normalized.multi_booking_id = multiBookingId;
       normalized.reference_number = genRef();
-      const inserted = await createBookingRow(client, normalized);
+      const inserted = await createBookingRow(pool, normalized);
       created.push(inserted);
     }
 
-    await client.query('COMMIT');
+    await pool.query('COMMIT');
     return { booking: created };
   } catch (err) {
-    await client.query('ROLLBACK');
+    await pool.query('ROLLBACK');
     throw err;
-  } finally {
-    client.release();
-  }
+  } 
 }
 
 /**

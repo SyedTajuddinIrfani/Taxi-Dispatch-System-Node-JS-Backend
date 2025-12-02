@@ -1238,20 +1238,20 @@ const Driver = {
     }
   },
   // Find driver by username (case-insensitive)
-async findDriverByUsername(username) {
-  const query = `
+  async findDriverByUsername(username) {
+    const query = `
         SELECT * FROM drivers 
         WHERE LOWER(username) = LOWER($1)
         LIMIT 1
     `;
-  const result = await db.query(query, [username]);
-  // console.log(result)
-  return result.rows[0];
-},
+    const result = await db.query(query, [username]);
+    // console.log(result)
+    return result.rows[0];
+  },
 
-// Update driver login session
-async updateDriverLoginStatus(driverId) {
-  const query = `
+  // Update driver login session
+  async updateDriverLoginStatus(driverId) {
+    const query = `
         UPDATE drivers 
         SET 
           session_status = 'logged_in',
@@ -1259,18 +1259,51 @@ async updateDriverLoginStatus(driverId) {
           booking_status = 'Available'
         WHERE id = $1
       `;
-  return db.query(query, [driverId]);
-},
-async updateDriverLogoutStatus(id) {
-  const query = `
+    return db.query(query, [driverId]);
+  },
+  async updateDriverLogoutStatus(id) {
+    const query = `
     UPDATE drivers
     SET session_status = 'logged_out'
     WHERE id = $1
   `;
-  await db.query(query, [id]);
-  return true;
-},
+    await db.query(query, [id]);
+    return true;
+  },
 
+  async getByCompany(company_id) {
+    const query = `
+    SELECT 
+      d.*,
+      s.name AS subsidiary_name,
+      jsonb_build_object(
+        'vehicle_number', v.vehicle_number,
+        'make', v.make,
+        'model', v.model,
+        'color', v.color,
+        'end_date', v.end_date,
+        'vehicle_type', jsonb_build_object(
+          'id', vt.id,
+          'name', vt.name,
+          'passengers', vt.passengers,
+          'luggages', vt.luggages,
+          'driver_waiting_charges', vt.driver_waiting_charges
+        )
+      ) AS vehicle,
+      jsonb_build_object(
+        'name', s.name
+      ) AS subsidiary
+    FROM drivers d
+    LEFT JOIN subsidiaries s ON d.subsidiary_id = s.id
+    LEFT JOIN vehicles v ON d.vehicle_id = v.id
+    LEFT JOIN vehicle_types vt ON v.vehicle_type_id = vt.id
+    WHERE d.company_id = $1
+    ORDER BY d.id DESC
+  `;
+
+    const result = await db.query(query, [company_id]);
+    return result.rows;
+  },
 };
 
 module.exports = Driver;

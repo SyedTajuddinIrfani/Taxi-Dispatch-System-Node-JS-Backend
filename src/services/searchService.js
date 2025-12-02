@@ -1,7 +1,7 @@
 const axios = require("axios");
 const { getLocationTypes } = require("../utils/locationTypeCache");
 
-const BASE_URL = "http://192.168.110.4:5000/api";
+const BASE_URL = "http://192.168.110.5:5000/api";
 const LOCATIONS_URL = `${BASE_URL}/locations/get`;
 const ADDRESS_SEARCH_URL = `${BASE_URL}/addresses/search?search=`;
 
@@ -11,6 +11,7 @@ const ADDRESS_SEARCH_URL = `${BASE_URL}/addresses/search?search=`;
  * 2. location.shortcut (e.g., "A H" → Heathrow)
  * 3. fallback: address search API
  */
+
 const searchAddressOrShortcut = async (query) => {
   const locationTypes = getLocationTypes();
   const searchTerm = query.trim().toLowerCase();
@@ -48,8 +49,7 @@ const searchAddressOrShortcut = async (query) => {
   // ✅ Step 2️⃣ If not found, check in locations.shortcut
   const shortcutMatches = allLocations
     .filter(
-      (loc) =>
-        loc.shortcut && loc.shortcut.toLowerCase().trim() === searchTerm
+      (loc) => loc.shortcut && loc.shortcut.toLowerCase().trim() === searchTerm
     )
     .map((loc) => ({
       name: loc.name,
@@ -68,7 +68,9 @@ const searchAddressOrShortcut = async (query) => {
   }
 
   // ✅ Step 3️⃣ Fallback: address search
-  const addrRes = await axios.get(`${ADDRESS_SEARCH_URL}${encodeURIComponent(query)}`);
+  const addrRes = await axios.get(
+    `${ADDRESS_SEARCH_URL}${encodeURIComponent(query)}`
+  );
   const addresses = (addrRes.data || []).map((item) => ({
     name: item.name,
     postcode: item.postcode,
@@ -85,4 +87,3 @@ const searchAddressOrShortcut = async (query) => {
 };
 
 module.exports = { searchAddressOrShortcut };
-
