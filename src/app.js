@@ -79,6 +79,7 @@ const skipFileUploadRoutes = [
   "/api/subsidiaries",
   "/api/drivers",
   "/api/faresconfiguration",
+  "/api/employees",
 ];
 app.use((req, res, next) => {
   if (skipFileUploadRoutes.some((r) => req.originalUrl.startsWith(r))) {

@@ -5,7 +5,8 @@ const Employee = require("../models/employeeModel");
 const EmployeeExtension = require("../models/employeeExtensionsModel");
 const Role = require("../models/roleModel");
 const pool = require("../db");
-
+const path = require("path");
+const BASE_URL = process.env.BASE_URL || "http://192.168.110.5:5000/uploads/";
 const JWT_SECRET = process.env.JWT_SECRET || "NexusTaxiDispatchSystem";
 
 // Helper for password hashing
@@ -76,16 +77,24 @@ const create = async (req, res) => {
       role_id,
       username,
       password,
+      confirmpassword, 
       email,
       phone,
       fax,
-      image,
       web_device_id,
       mobile_device_id,
       extension_number,
       release_note_viewed,
+      active,
+      alldrivers,
+      allbookings,
+      allaccounts,
+      callreceiver,
+      allowtransferbookings
     } = req.body;
-
+ // 🖼️ Image handling
+    const imageUrl = req.file ? `${BASE_URL}${req.file.filename}` : null;
+    req.body.image = imageUrl;
     console.log(
       "🚀 INCOMING EMPLOYEE ADD BODY:",
       JSON.stringify(req.body, null, 2)
@@ -106,6 +115,7 @@ const create = async (req, res) => {
 
     // Hash password
     const hashed = await hashPassword(password);
+    const confirmhashed = await hashPassword(confirmpassword);
 
     // Create employee
     const newEmp = await Employee.create({
@@ -113,14 +123,21 @@ const create = async (req, res) => {
       role_id,
       username: username.toLowerCase(),
       password: hashed,
+      confirmpassword: confirmhashed, 
       email,
       phone,
       fax,
-      image,
+      image: imageUrl,
       web_device_id,
       mobile_device_id,
       extension_number,
       release_note_viewed,
+      active,
+      alldrivers,
+      allbookings,
+      allaccounts,
+      callreceiver,
+      allowtransferbookings,
     });
 
     // Fetch role and subsidiary info
