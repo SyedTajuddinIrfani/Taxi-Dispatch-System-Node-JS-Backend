@@ -2,8 +2,8 @@ const EnumerationsModel = require("../models/enumerationsModel");
 
 exports.getAllEnumerations = async (req, res) => {
     try {
-        const subsidiary_id = req.query.subsidiary_id;
-        const data = await EnumerationsModel.getAll(subsidiary_id);
+        
+        const data = await EnumerationsModel.getAll();
 
         return res.json({
             status: true,

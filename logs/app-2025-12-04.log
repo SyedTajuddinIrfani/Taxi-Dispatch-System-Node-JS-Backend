@@ -1729,3 +1729,50 @@
 {"level":"info","message":"GET /api/location-types 200 10.989 ms","timestamp":"2025-12-04T18:00:56.444Z"}
 {"duration":71,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-12-04T18:00:56.506Z"}
 {"level":"info","message":"GET /api/location-types 200 72.324 ms","timestamp":"2025-12-04T18:00:56.507Z"}
+{"duration":5,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-12-04T18:01:00.044Z"}
+{"level":"info","message":"GET /api/location-types 200 13.465 ms","timestamp":"2025-12-04T18:01:00.053Z"}
+{"duration":1,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-12-04T18:01:00.062Z"}
+{"level":"info","message":"GET /api/location-types 200 2.072 ms","timestamp":"2025-12-04T18:01:00.064Z"}
+{"duration":3,"level":"info","message":"db-query","rows":14,"text":"SELECT * FROM booking_statuses ORDER BY id ASC","timestamp":"2025-12-04T18:01:00.113Z"}
+{"duration":3,"level":"info","message":"db-query","rows":2,"text":"SELECT * FROM booking_types ORDER BY id ASC","timestamp":"2025-12-04T18:01:00.116Z"}
+{"duration":2,"level":"info","message":"db-query","rows":2,"text":"SELECT * FROM journey_types ORDER BY id ASC","timestamp":"2025-12-04T18:01:00.119Z"}
+{"duration":1,"level":"info","message":"db-query","rows":3,"text":"SELECT * FROM payment_statuses ORDER BY id ASC","timestamp":"2025-12-04T18:01:00.122Z"}
+{"duration":2,"level":"info","message":"db-query","rows":4,"text":"SELECT * FROM payment_types ORDER BY id ASC","timestamp":"2025-12-04T18:01:00.124Z"}
+{"duration":3,"level":"info","message":"db-query","rows":3,"text":"SELECT * FROM vehicle_types ORDER BY id ASC","timestamp":"2025-12-04T18:01:00.128Z"}
+{"duration":4,"level":"info","message":"db-query","rows":1,"text":"SELECT id, background_color, foreground_color, name FROM subsidiaries ORDER BY id ASC","timestamp":"2025-12-04T18:01:00.132Z"}
+{"duration":3,"level":"info","message":"db-query","rows":1,"text":"SELECT id, username, name, email FROM drivers WHERE session_status = $1 AND active = $2 ORDER BY id ASC","timestamp":"2025-12-04T18:01:00.190Z"}
+{"duration":4,"level":"info","message":"db-query","rows":6,"text":"\n        SELECT\n          a.id, a.account_type, a.closed, a.name, a.email, a.payment_types, a.information, a.background_color, a.foreground_color,\n          json_agg(DISTINCT jsonb_build_object('id', d.id, 'name', d.name)) AS departments,\n          jsonb_build_object(\n            'id', s.id,\n            'name', s.name,\n            'telephone_number', s.telephone_number,\n            'email', s.email\n          ) AS subsidiary\n        FROM accounts a\n        LEFT JOIN departments d ON a.id = d.account_id\n        LEFT JOIN subsidiaries s ON a.subsidiary_id = s.id\n        WHERE a.subsidiary_id = $1\n        GROUP BY a.id, s.id\n        ORDER BY a.id ASC;\n      ","timestamp":"2025-12-04T18:01:00.227Z"}
+{"level":"info","message":"GET /api/enumerations/get?subsidiary_id=10 200 118.005 ms","timestamp":"2025-12-04T18:01:00.228Z"}
+{"duration":90,"level":"info","message":"db-query","rows":6,"text":"\n    SELECT\n      a.*,\n      json_agg(DISTINCT jsonb_build_object('id', d.id, 'name', d.name)) AS departments,\n      jsonb_build_object(\n        'id', s.id,\n        'name', s.name,\n        'telephone_number', s.telephone_number,\n        'email', s.email\n      ) AS subsidiary\n    FROM accounts a\n    LEFT JOIN departments d ON a.id = d.account_id\n    LEFT JOIN subsidiaries s ON a.subsidiary_id = s.id\n    WHERE a.subsidiary_id = $1\n    GROUP BY a.id, s.id\n    ORDER BY a.id ASC;\n  ","timestamp":"2025-12-04T18:02:47.920Z"}
+{"level":"info","message":"GET /api/accounts/subsidiary/10 200 97.867 ms","timestamp":"2025-12-04T18:02:47.926Z"}
+{"duration":52,"level":"info","message":"db-query","rows":14,"text":"SELECT * FROM booking_statuses ORDER BY id ASC","timestamp":"2025-12-04T18:03:06.212Z"}
+{"duration":2,"level":"info","message":"db-query","rows":2,"text":"SELECT * FROM booking_types ORDER BY id ASC","timestamp":"2025-12-04T18:03:06.215Z"}
+{"duration":2,"level":"info","message":"db-query","rows":2,"text":"SELECT * FROM journey_types ORDER BY id ASC","timestamp":"2025-12-04T18:03:06.218Z"}
+{"duration":2,"level":"info","message":"db-query","rows":3,"text":"SELECT * FROM payment_statuses ORDER BY id ASC","timestamp":"2025-12-04T18:03:06.220Z"}
+{"duration":2,"level":"info","message":"db-query","rows":4,"text":"SELECT * FROM payment_types ORDER BY id ASC","timestamp":"2025-12-04T18:03:06.222Z"}
+{"duration":3,"level":"info","message":"db-query","rows":3,"text":"SELECT * FROM vehicle_types ORDER BY id ASC","timestamp":"2025-12-04T18:03:06.225Z"}
+{"duration":2,"level":"info","message":"db-query","rows":1,"text":"SELECT id, background_color, foreground_color, name FROM subsidiaries ORDER BY id ASC","timestamp":"2025-12-04T18:03:06.227Z"}
+{"duration":3,"level":"info","message":"db-query","rows":1,"text":"SELECT id, username, name, email FROM drivers WHERE session_status = $1 AND active = $2 ORDER BY id ASC","timestamp":"2025-12-04T18:03:06.231Z"}
+{"duration":4,"level":"info","message":"db-query","rows":6,"text":"\n        SELECT\n          a.id, a.account_type, a.closed, a.name, a.email, a.payment_types, a.information, a.background_color, a.foreground_color,\n          json_agg(DISTINCT jsonb_build_object('id', d.id, 'name', d.name)) AS departments,\n          jsonb_build_object(\n            'id', s.id,\n            'name', s.name,\n            'telephone_number', s.telephone_number,\n            'email', s.email\n          ) AS subsidiary\n        FROM accounts a\n        LEFT JOIN departments d ON a.id = d.account_id\n        LEFT JOIN subsidiaries s ON a.subsidiary_id = s.id\n        WHERE a.subsidiary_id = $1\n        GROUP BY a.id, s.id\n        ORDER BY a.id ASC;\n      ","timestamp":"2025-12-04T18:03:06.236Z"}
+{"level":"info","message":"GET /api/enumerations/get?subsidiary_id=10 200 78.532 ms","timestamp":"2025-12-04T18:03:06.238Z"}
+{"level":"info","message":"POST /api/roles 400 59.643 ms","timestamp":"2025-12-04T18:04:14.777Z"}
+{"duration":6,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-12-04T18:05:36.885Z"}
+{"level":"info","message":"GET /api/location-types 200 11.712 ms","timestamp":"2025-12-04T18:05:36.892Z"}
+{"duration":67,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-12-04T18:05:36.949Z"}
+{"level":"info","message":"GET /api/location-types 200 68.543 ms","timestamp":"2025-12-04T18:05:36.951Z"}
+{"duration":5,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-12-04T18:05:40.698Z"}
+{"level":"info","message":"GET /api/location-types 200 10.832 ms","timestamp":"2025-12-04T18:05:40.705Z"}
+{"duration":54,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-12-04T18:05:40.749Z"}
+{"level":"info","message":"GET /api/location-types 200 55.382 ms","timestamp":"2025-12-04T18:05:40.751Z"}
+{"duration":5,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-12-04T18:05:44.677Z"}
+{"level":"info","message":"GET /api/location-types 200 10.758 ms","timestamp":"2025-12-04T18:05:44.685Z"}
+{"duration":63,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-12-04T18:05:44.737Z"}
+{"level":"info","message":"GET /api/location-types 200 64.271 ms","timestamp":"2025-12-04T18:05:44.739Z"}
+{"duration":5,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-12-04T18:05:49.092Z"}
+{"level":"info","message":"GET /api/location-types 200 11.238 ms","timestamp":"2025-12-04T18:05:49.100Z"}
+{"duration":58,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-12-04T18:05:49.146Z"}
+{"level":"info","message":"GET /api/location-types 200 59.388 ms","timestamp":"2025-12-04T18:05:49.148Z"}
+{"duration":5,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-12-04T18:05:57.010Z"}
+{"level":"info","message":"GET /api/location-types 200 30.286 ms","timestamp":"2025-12-04T18:05:57.036Z"}
+{"duration":212,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-12-04T18:05:57.219Z"}
+{"level":"info","message":"GET /api/location-types 200 220.005 ms","timestamp":"2025-12-04T18:05:57.227Z"}
