@@ -27,6 +27,10 @@ exports.getAll = async (req, res) => {
 
 exports.create = async (req, res) => {
   try {
+     console.log(
+      "🚀 INCOMING PLOT FARE ADD BODY:",
+      JSON.stringify(req.body, null, 2)
+    );
     const newPlotFare = await PlotFare.create(req.body);
     res.json({
       status: true,

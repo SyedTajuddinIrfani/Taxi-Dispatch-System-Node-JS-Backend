@@ -144,9 +144,8 @@ exports.getAccountsBySubsidiary = async (req, res) => {
     return res.json({
       status: true,
       count: accounts.length,
-      accounts
+      accounts,
     });
-
   } catch (err) {
     console.error(err);
     return res.status(500).json({ status: false, error: err.message });

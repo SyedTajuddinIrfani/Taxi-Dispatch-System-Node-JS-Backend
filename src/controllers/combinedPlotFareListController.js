@@ -1,4 +1,3 @@
-// controllers/combinedController.js
 const CombinedModel = require("../models/combinedPlotFareListModel");
 
 exports.getVehicleTypeAndZones = async (req, res) => {

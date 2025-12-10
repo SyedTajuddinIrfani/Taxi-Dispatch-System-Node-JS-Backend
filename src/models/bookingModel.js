@@ -1,10 +1,10 @@
-const pool = require('../db');
+const pool = require("../db");
 
 const insertBookingRow = async (client, bookingRow) => {
   const cols = Object.keys(bookingRow);
   const vals = Object.values(bookingRow);
-  const params = vals.map((_, i) => `$${i + 1}`).join(',');
-  const sql = `INSERT INTO bookings (${cols.join(',')})
+  const params = vals.map((_, i) => `$${i + 1}`).join(",");
+  const sql = `INSERT INTO bookings (${cols.join(",")})
                VALUES (${params})
                RETURNING *;`;
   const res = await client.query(sql, vals);
@@ -15,20 +15,229 @@ const updateBooking = async (id, updates) => {
   const cols = Object.keys(updates);
   const vals = Object.values(updates);
   if (!cols.length) return null;
-  const set = cols.map((c, i) => `${c} = $${i + 2}`).join(', ');
+  const set = cols.map((c, i) => `${c} = $${i + 2}`).join(", ");
   const sql = `UPDATE bookings SET ${set}, updated_at = now() WHERE id = $1 RETURNING *`;
   const res = await pool.query(sql, [id, ...vals]);
   return res.rows[0];
 };
 
 const findBookingById = async (id) => {
-  const res = await pool.query('SELECT * FROM bookings WHERE id = $1', [id]);
+  const res = await pool.query("SELECT * FROM bookings WHERE id = $1", [id]);
   return res.rows[0];
+};
+
+const ENRICHED_SELECT = `
+SELECT 
+  b.*,
+
+  json_build_object(
+    'booking_status', bs.booking_status
+  ) AS booking_status,
+
+  json_build_object(
+    'booking_type', bt.booking_type
+  ) AS booking_type,
+
+  json_build_object(
+    'journey_type', jt.journey_type
+  ) AS journey_type,
+
+  json_build_object(
+    'id', s.id,
+    'name', s.name,
+    'telephone_number', s.telephone_number
+  ) AS subsidiary,
+
+  json_build_object(
+    'name', vt.name,
+    'background_color', vt.background_color,
+    'foreground_color', vt.foreground_color
+  ) AS vehicle_type,
+
+  json_build_object(
+    'id', pt.id,
+    'name', pt.name,
+    'background_color', pt.background_color,
+    'foreground_color', pt.foreground_color
+  ) AS payment_type,
+
+  json_build_object(
+    'id', a.id,
+    'name', a.name,
+    'background_color', a.background_color,
+    'foreground_color', a.foreground_color,
+    'has_vat', a.has_vat,
+    'bank_information', a.bank_information,
+    'fare_controller', a.fare_controller,
+    'account_fees_type', a.account_fees_type,
+    'account_fees', a.account_fees,
+    'account_fees_vat', a.account_fees_vat
+  ) AS account,
+
+  json_build_object(
+    'id', d.id,
+    'username', d.username,
+    'name', d.name,
+    'mobile_device_id', d.mobile_device_id,
+    'phc_vehicle_number', d.phc_vehicle_number,
+    'phc_driver_number', d.phc_driver_number,
+    'vehicle_id', d.vehicle_id,
+    'driver_commission', d.driver_commission,
+    'session_status', d.session_status,
+    'vehicle', json_build_object(
+        'make', v.make,
+        'model', v.model,
+        'color', v.color,
+        'vehicle_number', v.vehicle_number
+    )
+  ) AS driver,
+
+  json_build_object(
+    'door_number', c.door_number,
+    'address1', c.address1,
+    'address2', c.address2,
+    'blacklist', c.blacklist
+  ) AS customer,
+
+  json_build_object(
+    'username', e.username,
+    'role_id', e.role_id
+  ) AS employee
+
+FROM bookings b
+LEFT JOIN booking_statuses bs ON b.booking_status_id = bs.id
+LEFT JOIN booking_types bt ON b.booking_type_id = bt.id
+LEFT JOIN journey_types jt ON b.journey_type_id = jt.id
+LEFT JOIN subsidiaries s ON b.subsidiary_id = s.id
+LEFT JOIN vehicle_types vt ON b.vehicle_type_id = vt.id
+LEFT JOIN payment_types pt ON b.payment_type_id = pt.id
+LEFT JOIN accounts a ON b.account_id = a.id
+LEFT JOIN drivers d ON b.driver_id = d.id
+LEFT JOIN vehicles v ON d.vehicle_id = v.id
+LEFT JOIN customers c ON b.customer_id = c.id
+LEFT JOIN employees e ON b.employee_id = e.id
+`;
+
+// ---------------------------------------------------------
+// TODAY BOOKINGS (STATUS = WAITING)
+// ---------------------------------------------------------
+const getTodayBookings = async () => {
+  const sql = `
+    ${ENRICHED_SELECT}
+    WHERE DATE(b.pickup_date) = CURRENT_DATE
+    AND b.booking_status_id = 1
+    ORDER BY b.pickup_date ASC
+  `;
+  return (await pool.query(sql)).rows;
+};
+
+// ---------------------------------------------------------
+// ALL BOOKINGS
+// ---------------------------------------------------------
+const getAllBookings = async () => {
+  const sql = `
+    ${ENRICHED_SELECT}
+    ORDER BY b.id DESC
+  `;
+  return (await pool.query(sql)).rows;
+};
+
+// ---------------------------------------------------------
+// PRE BOOKINGS (DATE > TODAY)
+// ---------------------------------------------------------
+const getPreBookings = async () => {
+  const sql = `
+    ${ENRICHED_SELECT}
+    WHERE DATE(b.pickup_date) > CURRENT_DATE
+    ORDER BY b.pickup_date ASC
+  `;
+  return (await pool.query(sql)).rows;
+};
+
+// ---------------------------------------------------------
+// RECENT BOOKINGS (NOT COMPLETED)
+// ---------------------------------------------------------
+const getRecentBookings = async () => {
+  const sql = `
+    ${ENRICHED_SELECT}
+    WHERE b.booking_status_id != 3 
+    ORDER BY b.id DESC
+  `;
+  return (await pool.query(sql)).rows;
+};
+
+// ---------------------------------------------------------
+// COMPLETED BOOKINGS
+// ---------------------------------------------------------
+const getCompletedBookings = async () => {
+  const sql = `
+    ${ENRICHED_SELECT}
+    WHERE b.booking_status_id = 3
+    ORDER BY b.id DESC
+  `;
+  return (await pool.query(sql)).rows;
+};
+
+// ---------------------------------------------------------
+// WEB BOOKINGS
+// ---------------------------------------------------------
+const getWebBookings = async () => {
+  const sql = `
+    ${ENRICHED_SELECT}
+    WHERE b.booking_source = 'web'
+    ORDER BY b.id DESC
+  `;
+  return (await pool.query(sql)).rows;
+};
+
+// ---------------------------------------------------------
+// APP BOOKINGS
+// ---------------------------------------------------------
+const getAppBookings = async () => {
+  const sql = `
+    ${ENRICHED_SELECT}
+    WHERE b.booking_source = 'app'
+    ORDER BY b.id DESC
+  `;
+  return (await pool.query(sql)).rows;
+};
+
+// ---------------------------------------------------------
+// IVR BOOKINGS
+// ---------------------------------------------------------
+const getIvrBookings = async () => {
+  const sql = `
+    ${ENRICHED_SELECT}
+    WHERE b.booking_source = 'ivr'
+    ORDER BY b.id DESC
+  `;
+  return (await pool.query(sql)).rows;
+};
+
+// ---------------------------------------------------------
+// QUOTED BOOKINGS
+// ---------------------------------------------------------
+const getQuotedBookings = async () => {
+  const sql = `
+    ${ENRICHED_SELECT}
+    WHERE b.quoted = true
+    ORDER BY b.id DESC
+  `;
+  return (await pool.query(sql)).rows;
 };
 
 module.exports = {
   pool,
   insertBookingRow,
   updateBooking,
-  findBookingById
+  findBookingById,
+  getTodayBookings,
+  getPreBookings,
+  getAllBookings,
+  getAppBookings,
+  getCompletedBookings,
+  getIvrBookings,
+  getRecentBookings,
+  getQuotedBookings,
+  getWebBookings,
 };

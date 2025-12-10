@@ -1,4 +1,3 @@
-// controllers/combinedController.js
 const CombinedModel = require("../models/combinedFixedFareListModel");
 
 exports.getVehicleTypeAndLocationTypes = async (req, res) => {
@@ -6,19 +5,19 @@ exports.getVehicleTypeAndLocationTypes = async (req, res) => {
     // Parallel API calls for better performance 🚀
     const [vehicleTypes, locationTypes] = await Promise.all([
       CombinedModel.fetchVehicleTypes(),
-      CombinedModel.fetchLocationTypes()
+      CombinedModel.fetchLocationTypes(),
     ]);
 
     // Filtered fields (you can adjust as needed)
-    const filteredVehicleTypes = vehicleTypes.map(v => ({
+    const filteredVehicleTypes = vehicleTypes.map((v) => ({
       id: v.id,
-      name: v.name
+      name: v.name,
     }));
 
-    const filteredLocationTypes = locationTypes.map(l => ({
+    const filteredLocationTypes = locationTypes.map((l) => ({
       id: l.id,
       name: l.name,
-      shortcut: l.shortcut
+      shortcut: l.shortcut,
     }));
 
     // Combined response
@@ -28,7 +27,7 @@ exports.getVehicleTypeAndLocationTypes = async (req, res) => {
       vehicle_types_count: filteredVehicleTypes.length,
       location_types_count: filteredLocationTypes.length,
       vehicle_types: filteredVehicleTypes,
-      location_types: filteredLocationTypes
+      location_types: filteredLocationTypes,
     };
 
     res.status(200).json(response);
@@ -37,7 +36,7 @@ exports.getVehicleTypeAndLocationTypes = async (req, res) => {
     res.status(500).json({
       status: false,
       message: "Error fetching combined data",
-      error: error.message
+      error: error.message,
     });
   }
 };

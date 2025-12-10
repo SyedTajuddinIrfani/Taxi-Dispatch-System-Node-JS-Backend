@@ -1,37 +1,63 @@
-// services/bookingService.js
-const crypto = require('crypto');
-const { pool, insertBookingRow, updateBooking, findBookingById } = require('../models/bookingModel');
+const {
+  pool,
+  insertBookingRow,
+  updateBooking,
+  findBookingById,
+} = require("../models/bookingModel");
 
-const DEFAULT_EMPLOYEE_ID = 23; // matches your example responses; change if needed
+const DEFAULT_EMPLOYEE_ID = 2; // matches your example responses; change if needed
 
-function genRef() {
-  let result = "NTG";
-  const digits = Math.floor(10000 + Math.random() * 90000).toString();
-  return result + digits;
+// UNIQUE REFERENCE GENERATOR
+async function genRef() {
+  let ref;
+  let exists = true;
+
+  while (exists) {
+    // Step 1: Random NTG Number
+    const digits = Math.floor(10000 + Math.random() * 90000).toString();
+    ref = "NTG" + digits;
+
+    // Step 2: Check DB if exists
+    const checkQuery = `SELECT reference_number FROM bookings WHERE reference_number = $1 LIMIT 1`;
+    const result = await pool.query(checkQuery, [ref]);
+
+    // Step 3: If NOT found → unique mil gaya
+    if (result.rows.length === 0) {
+      exists = false;
+    }
+  }
+
+  return ref;
 }
 
 function strOrNull(v) {
   if (v === undefined || v === null) return null;
-  if (typeof v === 'string') return v;
+  if (typeof v === "string") return v;
   return JSON.stringify(v);
 }
 
-function normalizeBookingPayload(src) {
+async function normalizeBookingPayload(src) {
   // Normalize keys and ensure JSON string fields are stored as text (stringified)
   const b = { ...src };
 
   // Fields that in DB are stringified JSON
-  const jsonFields = ['viapoints','restricted_drivers','child_seat','notes','skipped_bookings'];
+  const jsonFields = [
+    "viapoints",
+    "restricted_drivers",
+    "child_seat",
+    "notes",
+    "skipped_bookings",
+  ];
   for (const f of jsonFields) {
     if (b[f] !== undefined && b[f] !== null) {
-      if (typeof b[f] === 'string') {
+      if (typeof b[f] === "string") {
         // keep as-is (your API often sends stringified JSON)
         b[f] = b[f];
       } else {
         b[f] = JSON.stringify(b[f]);
       }
     } else {
-      b[f] = '[]';
+      b[f] = "[]";
     }
   }
 
@@ -44,7 +70,7 @@ function normalizeBookingPayload(src) {
   b.employee_id = b.employee_id || DEFAULT_EMPLOYEE_ID;
 
   // reference
-  b.reference_number = b.reference_number || genRef();
+  b.reference_number = b.reference_number || (await genRef());
 
   // total_charges fallback to fares
   if (b.total_charges === undefined || b.total_charges === null) {
@@ -67,25 +93,106 @@ function normalizeBookingPayload(src) {
 async function createBookingRow(pool, bookingObj) {
   // map allowed columns from your table (only include keys that exist in table)
   const allowed = [
-    'reference_number','subsidiary_id','booking_type_id','booking_status_id','journey_type_id',
-    'account_id','customer_id','employee_id','pickup','dropoff','pickup_date','pickup_time',
-    'dropoff_date','dropoff_time','pickup_door_number','dropoff_door_number','pickup_plot','dropoff_plot',
-    'pickup_location_type_id','dropoff_location_type_id','pickup_latitude','pickup_longitude',
-    'dropoff_latitude','dropoff_longitude','viapoints','restricted_drivers','flight_number','arriving_from',
-    'vehicle_type_id','vehicle_id','driver_id','passengers','luggages','hand_luggages','child_seat',
-    'name','email','mobile','telephone','lead_time','notes','special_instructions','payment_type_id',
-    'company_price','fares','total_charges','parking_charges','waiting_charges','extra_drop_charges',
-    'credit_card_charges','congestion_charges','miles','meet_and_greet','department','escort_id','order_number',
-    'booked_by','add_return_fare','fare_meter_status','fare_meter','quotation','quoted','dispatch','dispatch_as',
-    'sms','emailflag','trash','hidden','multi_booking_id','associated_booking','invoice_status','commission_status',
-    'commission','skipped_bookings','permanent','toggle_driver_text','toggle_passenger_text','cancelled_reason',
-    'booking_source','on_route','arrived','passenger_on_board','completed','controller_completed','driver_waiting_time',
-    'dispatched_at','booked_at','stripe_customer_id','stripe_payment_id','invoice_number','initial_subsidiary_id'
+    "reference_number",
+    "subsidiary_id",
+    "booking_type_id",
+    "booking_status_id",
+    "journey_type_id",
+    "account_id",
+    "customer_id",
+    "employee_id",
+    "pickup",
+    "dropoff",
+    "pickup_date",
+    "pickup_time",
+    "dropoff_date",
+    "dropoff_time",
+    "pickup_door_number",
+    "dropoff_door_number",
+    "pickup_plot",
+    "dropoff_plot",
+    "pickup_location_type_id",
+    "dropoff_location_type_id",
+    "pickup_latitude",
+    "pickup_longitude",
+    "dropoff_latitude",
+    "dropoff_longitude",
+    "viapoints",
+    "restricted_drivers",
+    "flight_number",
+    "arriving_from",
+    "vehicle_type_id",
+    "vehicle_id",
+    "driver_id",
+    "passengers",
+    "luggages",
+    "hand_luggages",
+    "child_seat",
+    "name",
+    "email",
+    "mobile",
+    "telephone",
+    "lead_time",
+    "notes",
+    "special_instructions",
+    "payment_type_id",
+    "company_price",
+    "fares",
+    "total_charges",
+    "parking_charges",
+    "waiting_charges",
+    "extra_drop_charges",
+    "credit_card_charges",
+    "congestion_charges",
+    "miles",
+    "meet_and_greet",
+    "department",
+    "escort_id",
+    "order_number",
+    "booked_by",
+    "add_return_fare",
+    "fare_meter_status",
+    "fare_meter",
+    "quotation",
+    "quoted",
+    "dispatch",
+    "dispatch_as",
+    "sms",
+    "emailflag",
+    "trash",
+    "hidden",
+    "multi_booking_id",
+    "associated_booking",
+    "invoice_status",
+    "commission_status",
+    "commission",
+    "skipped_bookings",
+    "permanent",
+    "toggle_driver_text",
+    "toggle_passenger_text",
+    "cancelled_reason",
+    "booking_source",
+    "on_route",
+    "arrived",
+    "passenger_on_board",
+    "completed",
+    "controller_completed",
+    "driver_waiting_time",
+    "dispatched_at",
+    "booked_at",
+    "stripe_customer_id",
+    "stripe_payment_id",
+    "invoice_number",
+    "initial_subsidiary_id",
+    "eta",
   ];
 
   const row = {};
   for (const k of allowed) {
-    if (Object.prototype.hasOwnProperty.call(bookingObj, k) && bookingObj[k] !== undefined) {
+    if (
+      Object.prototype.hasOwnProperty.call(bookingObj, k) &&
+      bookingObj[k] !== undefined
+    ) {
       row[k] = bookingObj[k];
     }
   }
@@ -102,9 +209,8 @@ async function createBookingRow(pool, bookingObj) {
  * Create simple booking (single booking)
  */
 async function createSimpleBooking(payload) {
-  
   try {
-    await pool.query('BEGIN');
+    await pool.query("BEGIN");
 
     // customer creation/upsert (minimal)
     let customerId = payload.customer_id || null;
@@ -115,7 +221,13 @@ async function createSimpleBooking(payload) {
          VALUES ($1,$2,$3,$4,$5)
          ON CONFLICT (email) DO UPDATE SET mobile = EXCLUDED.mobile
          RETURNING id`,
-         [c.name || payload.name, c.email || payload.email, c.mobile || payload.mobile, c.telephone || payload.telephone, c.blacklist || null]
+        [
+          c.name || payload.name,
+          c.email || payload.email,
+          c.mobile || payload.mobile,
+          c.telephone || payload.telephone,
+          c.blacklist || null,
+        ]
       );
       customerId = res.rows[0].id;
     } else if (!customerId && payload.email) {
@@ -125,20 +237,20 @@ async function createSimpleBooking(payload) {
          VALUES ($1,$2,$3,$4)
          ON CONFLICT (email) DO UPDATE SET mobile = EXCLUDED.mobile
          RETURNING id`,
-         [payload.name, payload.email, payload.mobile, payload.telephone]
+        [payload.name, payload.email, payload.mobile, payload.telephone]
       );
       customerId = res.rows[0].id;
     }
 
-    const normalized = normalizeBookingPayload(payload);
+    const normalized = await normalizeBookingPayload(payload);
     if (customerId) normalized.customer_id = customerId;
 
     const inserted = await createBookingRow(pool, normalized);
-    await pool.query('COMMIT');
+    await pool.query("COMMIT");
 
     return { booking: [inserted] };
   } catch (err) {
-    await pool.query('ROLLBACK');
+    await pool.query("ROLLBACK");
     throw err;
   }
 }
@@ -149,9 +261,8 @@ async function createSimpleBooking(payload) {
  * returns { booking: [primary], return_booking: [returnRow] }
  */
 async function createTwoWayBooking(payload) {
-
   try {
-    await pool.query('BEGIN');
+    await pool.query("BEGIN");
 
     // create customer similar to simple flow
     let customerId = payload.customer_id || null;
@@ -162,12 +273,17 @@ async function createTwoWayBooking(payload) {
          VALUES ($1,$2,$3,$4)
          ON CONFLICT (email) DO UPDATE SET mobile = EXCLUDED.mobile
          RETURNING id`,
-         [c.name || payload.name, c.email || payload.email, c.mobile || payload.mobile, c.telephone || payload.telephone]
+        [
+          c.name || payload.name,
+          c.email || payload.email,
+          c.mobile || payload.mobile,
+          c.telephone || payload.telephone,
+        ]
       );
       customerId = res.rows[0].id;
     }
 
-    const normalized = normalizeBookingPayload(payload);
+    const normalized = await normalizeBookingPayload(payload);
     if (customerId) normalized.customer_id = customerId;
 
     // create primary booking
@@ -196,20 +312,20 @@ async function createTwoWayBooking(payload) {
 
     // set association
     returnBooking.associated_booking = primary.id;
-    returnBooking.reference_number = genRef();
+    returnBooking.reference_number = await genRef();
     // return trip often uses same journey_type_id (2)
     // reset driver/vehicle maybe - keep as-is or null according to payload
     returnBooking.driver_id = returnBooking.driver_id || null;
 
     const retInserted = await createBookingRow(pool, returnBooking);
 
-    await pool.query('COMMIT');
+    await pool.query("COMMIT");
 
-    return { booking: [primary], return_booking: [retInserted] };
+    return { booking: [primary, retInserted] };
   } catch (err) {
-    await pool.query('ROLLBACK');
+    await pool.query("ROLLBACK");
     throw err;
-  } 
+  }
 }
 
 /**
@@ -220,7 +336,7 @@ async function createMultiVehicleBooking(payload) {
   // payload.booking = array of entries
 
   try {
-    await pool.query('BEGIN');
+    await pool.query("BEGIN");
 
     // create/get customer
     let customerId = payload.customer_id || null;
@@ -231,13 +347,15 @@ async function createMultiVehicleBooking(payload) {
          VALUES ($1,$2,$3,$4)
          ON CONFLICT (email) DO UPDATE SET mobile = EXCLUDED.mobile
          RETURNING id`,
-         [c.name, c.email, c.mobile, c.telephone]
+        [c.name, c.email, c.mobile, c.telephone]
       );
       customerId = res.rows[0].id;
     }
 
     // create a new multi_booking_id (use sequence nextval or timestamp-based id)
-    const multiBookingIdRes = await pool.query('SELECT nextval(\'bookings_id_seq\') as nextid');
+    const multiBookingIdRes = await pool.query(
+      "SELECT nextval('bookings_id_seq') as nextid"
+    );
     const multiBookingId = parseInt(multiBookingIdRes.rows[0].nextid, 10);
 
     const created = [];
@@ -246,20 +364,20 @@ async function createMultiVehicleBooking(payload) {
       // override some top-level keys that shouldn't carry over in merged
       delete merged.booking;
       delete merged.booking_type_id; // booking_type_id may be provided at top-level; keep if present in merged
-      const normalized = normalizeBookingPayload(merged);
+      const normalized = await normalizeBookingPayload(merged);
       if (customerId) normalized.customer_id = customerId;
       normalized.multi_booking_id = multiBookingId;
-      normalized.reference_number = genRef();
+      normalized.reference_number = await genRef();
       const inserted = await createBookingRow(pool, normalized);
       created.push(inserted);
     }
 
-    await pool.query('COMMIT');
+    await pool.query("COMMIT");
     return { booking: created };
   } catch (err) {
-    await pool.query('ROLLBACK');
+    await pool.query("ROLLBACK");
     throw err;
-  } 
+  }
 }
 
 /**
@@ -278,7 +396,7 @@ async function create(payload) {
   // If payload.booking exists and is array -> multi-vehicle or multi-bookings
   if (Array.isArray(payload.booking) && payload.booking.length > 0) {
     // Determine if multi-bookings (booking_type_id == 2) or multi-vehicle
-    if (payload.booking_type_id === 2 || payload.booking_type_id == '2') {
+    if (payload.booking_type_id === 2 || payload.booking_type_id == "2") {
       return createMultiBookings(payload);
     } else {
       return createMultiVehicleBooking(payload);
@@ -286,7 +404,7 @@ async function create(payload) {
   }
 
   // If single payload and journey_type_id == 2 -> two-way (return)
-  if (payload.journey_type_id === 2 || payload.journey_type_id == '2') {
+  if (payload.journey_type_id === 2 || payload.journey_type_id == "2") {
     return createTwoWayBooking(payload);
   }
 
@@ -297,5 +415,5 @@ async function create(payload) {
 module.exports = {
   create,
   genRef,
-  normalizeBookingPayload
+  normalizeBookingPayload,
 };

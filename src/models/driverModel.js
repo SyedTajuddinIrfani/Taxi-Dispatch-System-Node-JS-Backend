@@ -179,6 +179,7 @@ const Driver = {
       // Hash password
       const hashedPassword = await bcrypt.hash(data.password, 10);
       const driverAccessToken = await generateUniqueDriverAccessToken(db);
+      const company_id = 1;
       // Normalize empty fields
       Object.keys(data).forEach((key) => {
         if (data[key] === "" || data[key] === undefined) data[key] = null;
@@ -256,7 +257,7 @@ const Driver = {
         ni, image, company_vehicle_id, vehicle_id,
         licence_expiry_time, phc_driver_expiry_time, insurance_expiry_time, phc_vehicle_expiry_time,
         mot_expiry_time, mot2_expiry_time, v5_registration_expiry_time, road_tax_expiry_time,
-        rental_agreement_expiry_time, driver_access_token
+        rental_agreement_expiry_time, driver_access_token, company_id
       )
       VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,
@@ -268,7 +269,7 @@ const Driver = {
         $32,$33,$34,$35,$36,$37,
         $38,$39,$40,$41,
         $42,$43,$44,$45,$46,$47,
-        $48,$49,$50,$51
+        $48,$49,$50,$51,$52
       )
       RETURNING id
     `;
@@ -325,6 +326,7 @@ const Driver = {
         driver.road_tax_expiry_time,
         driver.rental_agreement_expiry_time,
         driverAccessToken,
+        company_id,
       ]);
 
       const driverId = driverRes.rows[0].id;

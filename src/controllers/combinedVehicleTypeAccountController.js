@@ -1,4 +1,3 @@
-// controllers/combinedController.js
 const CombinedModel = require("../models/combinedVehicleTypeAccountModel");
 
 exports.getVehicleTypeAndAccounts = async (req, res) => {
@@ -6,20 +5,20 @@ exports.getVehicleTypeAndAccounts = async (req, res) => {
     // Parallel API calls for better performance 🚀
     const [vehicleTypes, accounts] = await Promise.all([
       CombinedModel.fetchVehicleTypes(),
-      CombinedModel.fetchAccounts()
+      CombinedModel.fetchAccounts(),
     ]);
 
     // Filtered fields (you can adjust as needed)
-    const filteredVehicleTypes = vehicleTypes.map(v => ({
+    const filteredVehicleTypes = vehicleTypes.map((v) => ({
       id: v.id,
-      name: v.name
+      name: v.name,
     }));
 
-    const filteredAccounts = accounts.map(a => ({
+    const filteredAccounts = accounts.map((a) => ({
       id: a.id,
       name: a.name,
       code: a.code,
-      account_type: a.account_type
+      account_type: a.account_type,
     }));
 
     // Combined response
@@ -29,7 +28,7 @@ exports.getVehicleTypeAndAccounts = async (req, res) => {
       vehicle_types_count: filteredVehicleTypes.length,
       accounts_count: filteredAccounts.length,
       vehicle_types: filteredVehicleTypes,
-      accounts: filteredAccounts
+      accounts: filteredAccounts,
     };
 
     res.status(200).json(response);
@@ -38,7 +37,7 @@ exports.getVehicleTypeAndAccounts = async (req, res) => {
     res.status(500).json({
       status: false,
       message: "Error fetching combined data",
-      error: error.message
+      error: error.message,
     });
   }
 };

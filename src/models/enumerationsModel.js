@@ -25,7 +25,6 @@ const EnumerationsModel = {
     );
     const sql = `SELECT id, username, name, email FROM drivers WHERE session_status = $1 AND active = $2 ORDER BY id ASC`;
     const drivers = await db.query(sql, ["logged_in", true]);
-  
 
     return {
       booking_statuses: booking_statuses.rows,

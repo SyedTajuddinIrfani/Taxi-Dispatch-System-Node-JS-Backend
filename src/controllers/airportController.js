@@ -25,9 +25,9 @@ class AirportController {
       const id = req.params.id;
       const updated = await AirportService.updateAirport(id, req.body);
       console.log(
-      "🚀 INCOMING AIRPORT CHARGES UPDATE BODY:",
-      JSON.stringify(req.body, null, 2)
-    );
+        "🚀 INCOMING AIRPORT CHARGES UPDATE BODY:",
+        JSON.stringify(req.body, null, 2)
+      );
 
       res.json({
         status: true,
