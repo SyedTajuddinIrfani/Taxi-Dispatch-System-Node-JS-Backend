@@ -27,7 +27,7 @@ exports.getAll = async (req, res) => {
 
 exports.create = async (req, res) => {
   try {
-     console.log(
+    console.log(
       "🚀 INCOMING PLOT FARE ADD BODY:",
       JSON.stringify(req.body, null, 2)
     );
