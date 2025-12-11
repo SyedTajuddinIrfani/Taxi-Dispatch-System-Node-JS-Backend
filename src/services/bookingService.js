@@ -5,28 +5,24 @@ const {
   findBookingById,
 } = require("../models/bookingModel");
 
-const DEFAULT_EMPLOYEE_ID = 2; // matches your example responses; change if needed
+const DEFAULT_EMPLOYEE_ID = 2;
 
+// --------------------------------------------------
 // UNIQUE REFERENCE GENERATOR
+// --------------------------------------------------
 async function genRef() {
   let ref;
   let exists = true;
 
   while (exists) {
-    // Step 1: Random NTG Number
     const digits = Math.floor(10000 + Math.random() * 90000).toString();
     ref = "NTG" + digits;
 
-    // Step 2: Check DB if exists
     const checkQuery = `SELECT reference_number FROM bookings WHERE reference_number = $1 LIMIT 1`;
     const result = await pool.query(checkQuery, [ref]);
 
-    // Step 3: If NOT found → unique mil gaya
-    if (result.rows.length === 0) {
-      exists = false;
-    }
+    if (result.rows.length === 0) exists = false;
   }
-
   return ref;
 }
 
@@ -36,11 +32,12 @@ function strOrNull(v) {
   return JSON.stringify(v);
 }
 
+// --------------------------------------------------
+// NORMALIZER
+// --------------------------------------------------
 async function normalizeBookingPayload(src) {
-  // Normalize keys and ensure JSON string fields are stored as text (stringified)
   const b = { ...src };
 
-  // Fields that in DB are stringified JSON
   const jsonFields = [
     "viapoints",
     "restricted_drivers",
@@ -48,36 +45,27 @@ async function normalizeBookingPayload(src) {
     "notes",
     "skipped_bookings",
   ];
+
   for (const f of jsonFields) {
     if (b[f] !== undefined && b[f] !== null) {
-      if (typeof b[f] === "string") {
-        // keep as-is (your API often sends stringified JSON)
-        b[f] = b[f];
-      } else {
-        b[f] = JSON.stringify(b[f]);
-      }
+      b[f] = typeof b[f] === "string" ? b[f] : JSON.stringify(b[f]);
     } else {
       b[f] = "[]";
     }
   }
 
-  // Booleans default
   b.quotation = b.quotation || false;
   b.quoted = b.quoted || false;
   b.commission = b.commission === undefined ? true : !!b.commission;
 
-  // default employee
   b.employee_id = b.employee_id || DEFAULT_EMPLOYEE_ID;
 
-  // reference
   b.reference_number = b.reference_number || (await genRef());
 
-  // total_charges fallback to fares
   if (b.total_charges === undefined || b.total_charges === null) {
     b.total_charges = b.fares ?? 0;
   }
 
-  // ensure emailflag naming (DB column is lower-case 'emailflag')
   if (b.emailFlag !== undefined) {
     b.emailflag = b.emailFlag;
     delete b.emailFlag;
@@ -86,12 +74,11 @@ async function normalizeBookingPayload(src) {
   return b;
 }
 
-/**
- * Insert single booking row within a transaction using a pool.
- * bookingObj = normalized payload object (strings where DB expects text)
- */
+// --------------------------------------------------
+// INSERT BOOKING ROW
+// --------------------------------------------------
 async function createBookingRow(pool, bookingObj) {
-  // map allowed columns from your table (only include keys that exist in table)
+  // List of allowed DB columns
   const allowed = [
     "reference_number",
     "subsidiary_id",
@@ -187,6 +174,7 @@ async function createBookingRow(pool, bookingObj) {
     "eta",
   ];
 
+  // 🔥 FIX: Properly DEFINE row before using it
   const row = {};
   for (const k of allowed) {
     if (
@@ -197,29 +185,30 @@ async function createBookingRow(pool, bookingObj) {
     }
   }
 
-  // set defaults for some columns if not present
+  // defaults
   if (!row.booked_at) row.booked_at = new Date();
   if (row.multi_booking_id === undefined) row.multi_booking_id = 0;
 
+  // INSERT
   const inserted = await insertBookingRow(pool, row);
   return inserted;
 }
 
-/**
- * Create simple booking (single booking)
- */
+// --------------------------------------------------
+// CREATE SIMPLE BOOKING
+// --------------------------------------------------
 async function createSimpleBooking(payload) {
   try {
     await pool.query("BEGIN");
 
-    // customer creation/upsert (minimal)
     let customerId = payload.customer_id || null;
+
     if (!customerId && payload.customer) {
       const c = payload.customer;
       const res = await pool.query(
         `INSERT INTO customers (name,email,mobile,telephone,blacklist)
          VALUES ($1,$2,$3,$4,$5)
-         ON CONFLICT (email) DO UPDATE SET mobile = EXCLUDED.mobile
+         ON CONFLICT (email) DO UPDATE SET mobile=EXCLUDED.mobile
          RETURNING id`,
         [
           c.name || payload.name,
@@ -231,11 +220,10 @@ async function createSimpleBooking(payload) {
       );
       customerId = res.rows[0].id;
     } else if (!customerId && payload.email) {
-      // try insert by email minimal
       const res = await pool.query(
         `INSERT INTO customers (name,email,mobile,telephone)
          VALUES ($1,$2,$3,$4)
-         ON CONFLICT (email) DO UPDATE SET mobile = EXCLUDED.mobile
+         ON CONFLICT (email) DO UPDATE SET mobile=EXCLUDED.mobile
          RETURNING id`,
         [payload.name, payload.email, payload.mobile, payload.telephone]
       );
@@ -255,23 +243,20 @@ async function createSimpleBooking(payload) {
   }
 }
 
-/**
- * Create two-way booking (primary + return)
- * payload = single booking object which includes journey_type_id == 2
- * returns { booking: [primary], return_booking: [returnRow] }
- */
+// --------------------------------------------------
+// CREATE TWO-WAY BOOKING
+// --------------------------------------------------
 async function createTwoWayBooking(payload) {
   try {
     await pool.query("BEGIN");
 
-    // create customer similar to simple flow
     let customerId = payload.customer_id || null;
     if (!customerId && payload.customer) {
       const c = payload.customer;
       const res = await pool.query(
         `INSERT INTO customers (name,email,mobile,telephone)
          VALUES ($1,$2,$3,$4)
-         ON CONFLICT (email) DO UPDATE SET mobile = EXCLUDED.mobile
+         ON CONFLICT (email) DO UPDATE SET mobile=EXCLUDED.mobile
          RETURNING id`,
         [
           c.name || payload.name,
@@ -286,13 +271,10 @@ async function createTwoWayBooking(payload) {
     const normalized = await normalizeBookingPayload(payload);
     if (customerId) normalized.customer_id = customerId;
 
-    // create primary booking
     const primary = await createBookingRow(pool, normalized);
 
-    // build return booking: mostly copying primary, swap pickup/dropoff, set associated_booking
     const returnBooking = { ...normalized };
 
-    // swap pickup/dropoff & related fields (plots/doors/location types/latlng)
     returnBooking.pickup = normalized.dropoff;
     returnBooking.dropoff = normalized.pickup;
 
@@ -310,11 +292,8 @@ async function createTwoWayBooking(payload) {
     returnBooking.dropoff_latitude = normalized.pickup_latitude;
     returnBooking.dropoff_longitude = normalized.pickup_longitude;
 
-    // set association
     returnBooking.associated_booking = primary.id;
     returnBooking.reference_number = await genRef();
-    // return trip often uses same journey_type_id (2)
-    // reset driver/vehicle maybe - keep as-is or null according to payload
     returnBooking.driver_id = returnBooking.driver_id || null;
 
     const retInserted = await createBookingRow(pool, returnBooking);
@@ -328,46 +307,44 @@ async function createTwoWayBooking(payload) {
   }
 }
 
-/**
- * Multi-vehicle booking: payload.booking is an array of booking objects (same customer)
- * All bookings share same multi_booking_id
- */
+// --------------------------------------------------
+// MULTI VEHICLE booking
+// --------------------------------------------------
 async function createMultiVehicleBooking(payload) {
-  // payload.booking = array of entries
-
   try {
     await pool.query("BEGIN");
 
-    // create/get customer
     let customerId = payload.customer_id || null;
+
     if (!customerId && payload.customer) {
       const c = payload.customer;
       const res = await pool.query(
         `INSERT INTO customers (name,email,mobile,telephone)
          VALUES ($1,$2,$3,$4)
-         ON CONFLICT (email) DO UPDATE SET mobile = EXCLUDED.mobile
+         ON CONFLICT (email) DO UPDATE SET mobile=EXCLUDED.mobile
          RETURNING id`,
         [c.name, c.email, c.mobile, c.telephone]
       );
       customerId = res.rows[0].id;
     }
 
-    // create a new multi_booking_id (use sequence nextval or timestamp-based id)
     const multiBookingIdRes = await pool.query(
       "SELECT nextval('bookings_id_seq') as nextid"
     );
     const multiBookingId = parseInt(multiBookingIdRes.rows[0].nextid, 10);
 
     const created = [];
+
     for (const b of payload.booking) {
-      const merged = { ...payload, ...b }; // allow top-level defaults
-      // override some top-level keys that shouldn't carry over in merged
+      const merged = { ...payload, ...b };
       delete merged.booking;
-      delete merged.booking_type_id; // booking_type_id may be provided at top-level; keep if present in merged
+
       const normalized = await normalizeBookingPayload(merged);
       if (customerId) normalized.customer_id = customerId;
+
       normalized.multi_booking_id = multiBookingId;
       normalized.reference_number = await genRef();
+
       const inserted = await createBookingRow(pool, normalized);
       created.push(inserted);
     }
@@ -380,22 +357,103 @@ async function createMultiVehicleBooking(payload) {
   }
 }
 
-/**
- * Multi-bookings: payload.booking is array of similar bookings across multiple dates (booking_type_id==2)
- * Similar to multi-vehicle but shares multi_booking_id
- */
 async function createMultiBookings(payload) {
-  // re-use multi-vehicle logic; it's the same: create multiple bookings, same multi_booking_id
   return createMultiVehicleBooking(payload);
 }
 
-/**
- * Main entrypoint - detects flow and delegates
- */
+// --------------------------------------------------
+// ⭐⭐ NEW: MULTI RESERVATION BOOKING ⭐⭐
+// --------------------------------------------------
+async function createMultiReservationBooking(payload) {
+  try {
+    await pool.query("BEGIN");
+
+    const customerPayload = payload.customer?.[0] || payload.customer;
+    let customerId = payload.customer_id || null;
+
+    if (!customerId && customerPayload) {
+      const res = await pool.query(
+        `INSERT INTO customers (name,email,mobile,telephone,blacklist)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (email) DO UPDATE SET mobile=EXCLUDED.mobile
+         RETURNING id`,
+        [
+          customerPayload.name || payload.name,
+          customerPayload.email || payload.email,
+          customerPayload.mobile || payload.mobile,
+          customerPayload.telephone || payload.telephone,
+          customerPayload.blacklist || false,
+        ]
+      );
+      customerId = res.rows[0].id;
+    }
+
+    const multiBookingIdRes = await pool.query(
+      "SELECT nextval('bookings_id_seq') as nextid"
+    );
+    const multiBookingId = parseInt(multiBookingIdRes.rows[0].nextid, 10);
+
+    const created = [];
+
+    for (const mr of payload.multi_reservation) {
+      if (mr.exclude === true) continue;
+
+      const clone = { ...payload };
+
+      clone.pickup_date = mr.pickup_date;
+      clone.pickup_time = mr.pickup_time;
+
+      const normalized = await normalizeBookingPayload(clone);
+
+      normalized.customer_id = customerId;
+      normalized.multi_booking_id = multiBookingId;
+      normalized.reference_number = await genRef();
+
+      const inserted = await createBookingRow(pool, normalized);
+      created.push(inserted);
+    }
+
+    await pool.query("COMMIT");
+    return { booking: created };
+  } catch (err) {
+    await pool.query("ROLLBACK");
+    throw err;
+  }
+}
+
+// --------------------------------------------------
+// MAIN CONTROLLER
+// --------------------------------------------------
 async function create(payload) {
-  // If payload.booking exists and is array -> multi-vehicle or multi-bookings
+  // 🔥 FORCE PARSE multi_reservation IF STRING
+  if (typeof payload.multi_reservation === "string") {
+    try {
+      payload.multi_reservation = JSON.parse(payload.multi_reservation);
+    } catch (e) {
+      payload.multi_reservation = [];
+    }
+  }
+
+  // ⭐ MULTI RESERVATION DETECTION
+  if (
+    Array.isArray(payload.multi_reservation) &&
+    payload.multi_reservation.length > 0
+  ) {
+    // EXCLUDE FILTER
+    payload.multi_reservation = payload.multi_reservation.filter(
+      (b) => !b.exclude
+    );
+
+    if (payload.multi_reservation.length === 0) {
+      throw new Error(
+        "All multi reservations are excluded — nothing to insert."
+      );
+    }
+    return createMultiReservationBooking(payload);
+  }
+
+  // MULTI-VEHICLE / MULTI BOOKINGS
   if (Array.isArray(payload.booking) && payload.booking.length > 0) {
-    // Determine if multi-bookings (booking_type_id == 2) or multi-vehicle
     if (payload.booking_type_id === 2 || payload.booking_type_id == "2") {
       return createMultiBookings(payload);
     } else {
@@ -403,15 +461,16 @@ async function create(payload) {
     }
   }
 
-  // If single payload and journey_type_id == 2 -> two-way (return)
+  // TWO-WAY
   if (payload.journey_type_id === 2 || payload.journey_type_id == "2") {
     return createTwoWayBooking(payload);
   }
 
-  // Default simple booking
+  // SIMPLE
   return createSimpleBooking(payload);
 }
 
+// EXPORTS
 module.exports = {
   create,
   genRef,
