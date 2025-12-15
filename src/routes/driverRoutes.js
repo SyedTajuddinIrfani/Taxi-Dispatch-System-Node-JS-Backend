@@ -21,14 +21,13 @@ router.get("/get", driverController.getAll);
 router.get("/getbyid/:id", driverController.getById);
 router.post("/edit/:id", upload.any(), driverController.update);
 router.delete("/delete/:id", driverController.delete);
-router.post("/login",upload.none(), driverController.driverLogin);
-router.post("/verifytoken",upload.none(), driverController.verifyDriverToken);
-router.post("/logout/:id", upload.none() ,driverController.driverLogout);
+router.post("/login", upload.none(), driverController.driverLogin);
+router.post("/verifytoken", upload.none(), driverController.verifyDriverToken);
+router.post("/logout/:id", upload.none(), driverController.driverLogout);
 router.get("/company/:company_id", driverController.getByCompany);
 router.post("/test-upload", upload.any(), (req, res) => {
   console.log("Test uploaded files:", req.files);
   res.json({ files: req.files });
 });
-
 
 module.exports = router;

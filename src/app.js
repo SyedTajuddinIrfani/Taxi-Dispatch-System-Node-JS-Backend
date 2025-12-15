@@ -40,6 +40,7 @@ const fareMeterRoutes = require("./routes/fareMeterRoutes");
 const enumerationsRoutes = require("./routes/enumerationsRoutes");
 const employeeExtensionRoutes = require("./routes/employeeExtensionsRoutes");
 const bookingRoutes = require("./routes/bookingRoutes");
+const callEventRoutes = require("./routes/callEventRoutes");
 
 const app = express();
 
@@ -124,6 +125,13 @@ app.use("/api/faremeter", fareMeterRoutes);
 app.use("/api/enumerations", enumerationsRoutes);
 app.use("/api/employeeextension", employeeExtensionRoutes);
 app.use("/api/bookings", bookingRoutes);
+app.use("/api/calls", callEventRoutes);
+
+
+
+
+
+
 // ✅ Print all routes in console (for debugging)
 function printRoutes(stack, prefix = "") {
   stack.forEach((r) => {

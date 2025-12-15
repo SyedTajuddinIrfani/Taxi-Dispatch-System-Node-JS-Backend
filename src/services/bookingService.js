@@ -314,43 +314,63 @@ async function createMultiVehicleBooking(payload) {
   try {
     await pool.query("BEGIN");
 
+    // -----------------------------
+    // CREATE / FETCH CUSTOMER
+    // -----------------------------
     let customerId = payload.customer_id || null;
 
     if (!customerId && payload.customer) {
-      const c = payload.customer;
+      const c = payload.customer[0] || payload.customer;
+
       const res = await pool.query(
-        `INSERT INTO customers (name,email,mobile,telephone)
-         VALUES ($1,$2,$3,$4)
+        `INSERT INTO customers (name,email,mobile,telephone,blacklist)
+         VALUES ($1,$2,$3,$4,$5)
          ON CONFLICT (email) DO UPDATE SET mobile=EXCLUDED.mobile
          RETURNING id`,
-        [c.name, c.email, c.mobile, c.telephone]
+        [
+          c.name || payload.name,
+          c.email || payload.email,
+          c.mobile || payload.mobile,
+          c.telephone || payload.telephone,
+          c.blacklist || false,
+        ]
       );
+
       customerId = res.rows[0].id;
     }
 
-    const multiBookingIdRes = await pool.query(
-      "SELECT nextval('bookings_id_seq') as nextid"
-    );
-    const multiBookingId = parseInt(multiBookingIdRes.rows[0].nextid, 10);
+    // -----------------------------
+    // INSERT BOOKINGS FOR EACH VEHICLE
+    // -----------------------------
+    const createdBookings = [];
 
-    const created = [];
+    for (const vehicle of payload.multi_vehicle) {
+      if (vehicle.exclude === true) continue;
 
-    for (const b of payload.booking) {
-      const merged = { ...payload, ...b };
-      delete merged.booking;
+      // Clone payload for this one booking
+      const bookingRow = {
+        ...payload,
+        vehicle_type_id: vehicle.vehicle_type,
+      };
 
-      const normalized = await normalizeBookingPayload(merged);
-      if (customerId) normalized.customer_id = customerId;
+      // Remove arrays (not db columns)
+      delete bookingRow.multi_vehicle;
+      delete bookingRow.multi_reservation;
 
-      normalized.multi_booking_id = multiBookingId;
+      // Normalize (ASYNC)
+      const normalized = await normalizeBookingPayload(bookingRow);
+
+      normalized.customer_id = customerId;
       normalized.reference_number = await genRef();
 
+      // INSERT
       const inserted = await createBookingRow(pool, normalized);
-      created.push(inserted);
+      createdBookings.push(inserted);
     }
 
     await pool.query("COMMIT");
-    return { booking: created };
+
+    return { booking: createdBookings };
   } catch (err) {
     await pool.query("ROLLBACK");
     throw err;
@@ -424,35 +444,62 @@ async function createMultiReservationBooking(payload) {
 // --------------------------------------------------
 // MAIN CONTROLLER
 // --------------------------------------------------
+
+
 async function create(payload) {
-  // 🔥 FORCE PARSE multi_reservation IF STRING
+  // Force parse multi_reservation if string
   if (typeof payload.multi_reservation === "string") {
     try {
       payload.multi_reservation = JSON.parse(payload.multi_reservation);
-    } catch (e) {
+    } catch {
       payload.multi_reservation = [];
     }
   }
 
-  // ⭐ MULTI RESERVATION DETECTION
+  // Force parse multi_vehicle if it is coming as string
+  if (typeof payload.multi_vehicle === "string") {
+    try {
+      payload.multi_vehicle = JSON.parse(payload.multi_vehicle);
+    } catch {
+      payload.multi_vehicle = [];
+    }
+  }
+
+  // -------------------------
+  // MULTI RESERVATION
+  // -------------------------
   if (
     Array.isArray(payload.multi_reservation) &&
     payload.multi_reservation.length > 0
   ) {
-    // EXCLUDE FILTER
     payload.multi_reservation = payload.multi_reservation.filter(
       (b) => !b.exclude
     );
 
-    if (payload.multi_reservation.length === 0) {
-      throw new Error(
-        "All multi reservations are excluded — nothing to insert."
-      );
-    }
+    if (payload.multi_reservation.length === 0)
+      throw new Error("All multi reservations excluded — nothing to insert.");
+
     return createMultiReservationBooking(payload);
   }
 
-  // MULTI-VEHICLE / MULTI BOOKINGS
+  // -------------------------
+  // MULTI VEHICLE
+  // -------------------------
+  if (
+    Array.isArray(payload.multi_vehicle) &&
+    payload.multi_vehicle.length > 0
+  ) {
+    payload.multi_vehicle = payload.multi_vehicle.filter((v) => !v.exclude);
+
+    if (payload.multi_vehicle.length === 0)
+      throw new Error("All vehicles excluded — nothing to insert.");
+
+    return createMultiVehicleBooking(payload);
+  }
+
+  // -------------------------
+  // MULTI BOOKINGS (OLD)
+  // -------------------------
   if (Array.isArray(payload.booking) && payload.booking.length > 0) {
     if (payload.booking_type_id === 2 || payload.booking_type_id == "2") {
       return createMultiBookings(payload);
@@ -461,12 +508,12 @@ async function create(payload) {
     }
   }
 
-  // TWO-WAY
+  // Two-way
   if (payload.journey_type_id === 2 || payload.journey_type_id == "2") {
     return createTwoWayBooking(payload);
   }
 
-  // SIMPLE
+  // Simple
   return createSimpleBooking(payload);
 }
 

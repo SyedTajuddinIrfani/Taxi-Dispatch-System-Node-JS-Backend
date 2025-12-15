@@ -696,7 +696,6 @@ exports.getByCompany = async (req, res) => {
       count: drivers.length,
       drivers,
     });
-
   } catch (err) {
     console.error("Error:", err);
     return res.status(500).json({
@@ -705,4 +704,3 @@ exports.getByCompany = async (req, res) => {
     });
   }
 };
-

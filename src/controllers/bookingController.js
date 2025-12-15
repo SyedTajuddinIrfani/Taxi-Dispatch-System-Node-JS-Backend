@@ -78,10 +78,19 @@ exports.getBookingSections = async (req, res) => {
 
     return res.json({
       success: true,
-      message: "Booking sections loaded successfully",
+      message: "Booking Loaded Successfully",
+      today_bookings: today.length,
+        bookings: bookings.length,
+        pre_bookings: pre.length,
+        recent_bookings: recent.length,
+        completed_bookings: completed.length,
+        web_bookings: web.length,
+        quoted_bookings: quoted.length,
+        ivr_bookings: ivr.length,
+        app_bookings: app.length,
       data: {
         today_bookings: today,
-        bookings,
+        bookings: bookings,
         pre_bookings: pre,
         recent_bookings: recent,
         completed_bookings: completed,

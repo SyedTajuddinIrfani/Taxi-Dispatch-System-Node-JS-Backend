@@ -3,16 +3,6 @@ const path = require("path");
 
 const BASE_URL = process.env.BASE_URL || "http://192.168.110.5:5000/uploads/";
 
-// const getAll = async (req, res) => {
-//   try {
-//     const vehicles = await VehicleType.getAll();
-//     res.json({ status: true, count: vehicles.length, vehicle_types: vehicles });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ status: false, message: 'Server error' });
-//   }
-// };
-
 const getAll = async (req, res) => {
   try {
     let {

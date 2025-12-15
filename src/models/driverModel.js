@@ -145,7 +145,7 @@ function generateSecurityCode() {
 
 async function generateUniqueDriverAccessToken(db) {
   while (true) {
-    const token = generateSecurityCode(); // NTGxx
+    const token = generateSecurityCode(); 
 
     const { rows } = await db.query(
       `SELECT id FROM drivers WHERE driver_access_token = $1 LIMIT 1`,
@@ -153,7 +153,7 @@ async function generateUniqueDriverAccessToken(db) {
     );
 
     if (rows.length === 0) {
-      return token; // UNIQUE TOKEN FOUND
+      return token; 
     }
 
     // If found → loop runs again to generate a new one

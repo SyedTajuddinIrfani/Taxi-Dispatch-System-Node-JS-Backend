@@ -172,7 +172,7 @@ const getRecentBookings = async () => {
 const getCompletedBookings = async () => {
   const sql = `
     ${ENRICHED_SELECT}
-    WHERE b.booking_status_id = 3
+    WHERE b.booking_status_id = 11
     ORDER BY b.id DESC
   `;
   return (await pool.query(sql)).rows;
