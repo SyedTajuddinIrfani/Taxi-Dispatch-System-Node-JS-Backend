@@ -445,7 +445,6 @@ async function createMultiReservationBooking(payload) {
 // MAIN CONTROLLER
 // --------------------------------------------------
 
-
 async function create(payload) {
   // Force parse multi_reservation if string
   if (typeof payload.multi_reservation === "string") {

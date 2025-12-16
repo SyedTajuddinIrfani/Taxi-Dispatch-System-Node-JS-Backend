@@ -14,8 +14,9 @@ exports.receiveCallEvents = async (req, res) => {
     await CallEventModel.insertEvents(batchId, events);
 
     res.status(200).json({
-      message: "Call events saved successfully.",
+      message: "Call Events Saved Successfully.",
       batchId,
+      events,
     });
   } catch (error) {
     console.error(error);
@@ -54,7 +55,7 @@ exports.deleteCallEvents = async (req, res) => {
     const { token } = req.query;
 
     if (!token) {
-      return res.status(400).json({ message: "Token is required." });
+      return res.status(400).json({ message: "Token is Required." });
     }
 
     const deleted = await CallEventModel.deleteEventsByToken(token);
@@ -66,7 +67,7 @@ exports.deleteCallEvents = async (req, res) => {
     }
 
     res.status(200).json({
-      message: "Call events deleted successfully.",
+      message: "Call Events Deleted Successfully.",
     });
   } catch (error) {
     console.error(error);

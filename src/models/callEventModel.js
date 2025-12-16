@@ -1,5 +1,6 @@
 const db = require("../db");
 
+// Create Batch
 const createBatch = async (token) => {
   const result = await db.query(
     `INSERT INTO call_event_batches (token)
@@ -10,6 +11,7 @@ const createBatch = async (token) => {
   return result.rows[0].id;
 };
 
+// Insert Events
 const insertEvents = async (batchId, events) => {
   const query = `
     INSERT INTO call_events
@@ -30,6 +32,7 @@ const insertEvents = async (batchId, events) => {
   }
 };
 
+// Get Events By Token
 const getEventsByToken = async (token) => {
   const result = await db.query(
     `
@@ -44,6 +47,7 @@ const getEventsByToken = async (token) => {
   return result.rows;
 };
 
+// Delete Events By Token
 const deleteEventsByToken = async (token) => {
   const result = await db.query(
     `DELETE FROM call_event_batches WHERE token = $1`,
