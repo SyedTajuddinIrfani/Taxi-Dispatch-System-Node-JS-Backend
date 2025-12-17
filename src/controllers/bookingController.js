@@ -66,21 +66,20 @@ exports.createBooking = async (req, res) => {
 
 exports.getBookingSections = async (req, res) => {
   try {
-    const today = await getTodayBookings();
-    const bookings = await getAllBookings();
-    const recent = await getRecentBookings();
-    const completed = await getCompletedBookings();
-    const pre = await getPreBookings();
-    const web = await getWebBookings();
-    const quoted = await getQuotedBookings();
-    const ivr = await getIvrBookings();
-    const app = await getAppBookings();
+    const today = (await getTodayBookings()).map(parseJSONFields);
+    // const bookings = (await getAllBookings()).map(parseJSONFields);
+    const recent = (await getRecentBookings()).map(parseJSONFields);
+    const completed = (await getCompletedBookings()).map(parseJSONFields);
+    const pre = (await getPreBookings()).map(parseJSONFields);
+    const web = (await getWebBookings()).map(parseJSONFields);
+    const quoted = (await getQuotedBookings()).map(parseJSONFields);
+    const ivr = (await getIvrBookings()).map(parseJSONFields);
+    const app = (await getAppBookings()).map(parseJSONFields);
 
     return res.json({
       success: true,
-      message: "Booking Loaded Successfully",
+      message: "Bookings Loaded Successfully",
       today_bookings: today.length,
-      bookings: bookings.length,
       pre_bookings: pre.length,
       recent_bookings: recent.length,
       completed_bookings: completed.length,
@@ -90,7 +89,6 @@ exports.getBookingSections = async (req, res) => {
       app_bookings: app.length,
       data: {
         today_bookings: today,
-        bookings: bookings,
         pre_bookings: pre,
         recent_bookings: recent,
         completed_bookings: completed,
@@ -100,8 +98,9 @@ exports.getBookingSections = async (req, res) => {
         app_bookings: app,
       },
     });
+
   } catch (error) {
-    console.error("Error loading booking sections:", error);
+    console.error("Error loading Booking Sections:", error);
     return res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -109,3 +108,4 @@ exports.getBookingSections = async (req, res) => {
     });
   }
 };
+

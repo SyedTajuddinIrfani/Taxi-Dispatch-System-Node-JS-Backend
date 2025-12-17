@@ -120,16 +120,18 @@ LEFT JOIN employees e ON b.employee_id = e.id
 
 // ---------------------------------------------------------
 // TODAY BOOKINGS (STATUS = WAITING)
-// ---------------------------------------------------------
+// ---------------------------------------------------------.filter(item => item)
 const getTodayBookings = async () => {
   const sql = `
     ${ENRICHED_SELECT}
     WHERE DATE(b.pickup_date) = CURRENT_DATE
     AND b.booking_status_id = 1
-    ORDER BY b.pickup_date ASC
+    ORDER BY 
+      b.pickup_time::time ASC
   `;
   return (await pool.query(sql)).rows;
 };
+
 
 // ---------------------------------------------------------
 // ALL BOOKINGS
@@ -160,7 +162,7 @@ const getPreBookings = async () => {
 const getRecentBookings = async () => {
   const sql = `
     ${ENRICHED_SELECT}
-    WHERE b.booking_status_id != 3 
+    WHERE b.booking_status_id != 11 AND b.booking_status_id != 1
     ORDER BY b.id DESC
   `;
   return (await pool.query(sql)).rows;

@@ -26,6 +26,50 @@ const EnumerationsModel = {
     const sql = `SELECT id, username, name, email FROM drivers WHERE session_status = $1 AND active = $2 ORDER BY id ASC`;
     const drivers = await db.query(sql, ["logged_in", true]);
 
+    // 🔥 BOOKING TABS WITH COUNTS
+    const booking_tabs = await db.query(`
+      SELECT
+        bt.id,
+        bt.booking_tabs,
+        CASE bt.id
+          WHEN 1 THEN (
+            SELECT COUNT(*) FROM bookings 
+            WHERE DATE(pickup_date) = CURRENT_DATE 
+            AND booking_status_id = 1
+          )
+          WHEN 2 THEN (
+            SELECT COUNT(*) FROM bookings 
+            WHERE DATE(pickup_date) > CURRENT_DATE
+          )
+          WHEN 3 THEN (
+            SELECT COUNT(*) FROM bookings 
+            WHERE booking_status_id != 11 AND booking_status_id != 1
+          )
+          WHEN 4 THEN (
+            SELECT COUNT(*) FROM bookings 
+            WHERE booking_status_id = 11
+          )
+          WHEN 5 THEN (
+            SELECT COUNT(*) FROM bookings 
+            WHERE quoted = true
+          )
+          WHEN 6 THEN (
+            SELECT COUNT(*) FROM bookings 
+            WHERE booking_source = 'ivr'
+          )
+          WHEN 7 THEN (
+            SELECT COUNT(*) FROM bookings 
+            WHERE booking_source = 'web'
+          )
+          WHEN 8 THEN (
+            SELECT COUNT(*) FROM bookings 
+            WHERE booking_source = 'app'
+          )
+        END::int AS booking_count
+      FROM booking_tabs bt
+      ORDER BY bt.id ASC
+    `);
+
     return {
       booking_statuses: booking_statuses.rows,
       booking_types: booking_types.rows,
@@ -35,6 +79,7 @@ const EnumerationsModel = {
       vehicle_types: vehicle_types.rows,
       subsidiaries: subsidiaries.rows,
       drivers: drivers.rows,
+      booking_tabs: booking_tabs.rows,
     };
   },
 };
