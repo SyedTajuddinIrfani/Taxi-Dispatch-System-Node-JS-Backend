@@ -132,7 +132,6 @@ const getTodayBookings = async () => {
   return (await pool.query(sql)).rows;
 };
 
-
 // ---------------------------------------------------------
 // ALL BOOKINGS
 // ---------------------------------------------------------
@@ -228,6 +227,135 @@ const getQuotedBookings = async () => {
   return (await pool.query(sql)).rows;
 };
 
+// ---------------------------------------------------------
+// GET BOOKINGS BY TABS (PAGINATION + SEARCHING)
+// ---------------------------------------------------------
+const getBookingsByTab = async ({
+  tabWhere,
+  offset = 0,
+  limit = 20,
+  filters = {},
+}) => {
+
+  const conditions = [];
+  const params = [];
+  let idx = 1;
+
+  // 🔍 SEARCH FIELDS
+  if (filters.reference_number) {
+    conditions.push(`b.reference_number ILIKE $${idx++}`);
+    params.push(`%${filters.reference_number}%`);
+  }
+
+  if (filters.pickup_date) {
+    conditions.push(`CAST(b.pickup_date AS TEXT) ILIKE $${idx++}`);
+    params.push(`%${filters.pickup_date}%`);
+  }
+
+  if (filters.pickup_time) {
+    conditions.push(`CAST(b.pickup_time AS TEXT) ILIKE $${idx++}`);
+    params.push(`%${filters.pickup_time}%`);
+  }
+
+  if (filters.name) {
+    conditions.push(`b.name ILIKE $${idx++}`);
+    params.push(`%${filters.name}%`);
+  }
+
+  if (filters.pickup) {
+    conditions.push(`b.pickup ILIKE $${idx++}`);
+    params.push(`%${filters.pickup}%`);
+  }
+
+  if (filters.dropoff) {
+    conditions.push(`b.dropoff ILIKE $${idx++}`);
+    params.push(`%${filters.dropoff}%`);
+  }
+
+  if (filters.account_name) {
+    conditions.push(`a.name ILIKE $${idx++}`);
+    params.push(`%${filters.account_name}%`);
+  }
+
+  if (filters.driver_name) {
+    conditions.push(`d.name ILIKE $${idx++}`);
+    params.push(`%${filters.driver_name}%`);
+  }
+
+  if (filters.vehicle_type_name) {
+    conditions.push(`vt.name ILIKE $${idx++}`);
+    params.push(`%${filters.vehicle_type_name}%`);
+  }
+
+  if (filters.notes) {
+    conditions.push(`b.notes::text ILIKE $${idx++}`);
+    params.push(`%${filters.notes}%`);
+  }
+
+  if (filters.fares) {
+    conditions.push(`CAST(b.fares AS TEXT) ILIKE $${idx++}`);
+    params.push(`%${filters.fares}%`);
+  }
+
+  if (filters.booking_status) {
+    conditions.push(`bs.booking_status ILIKE $${idx++}`);
+    params.push(`%${filters.booking_status}%`);
+  }
+
+  if (filters.journey_type) {
+    conditions.push(`jt.journey_type ILIKE $${idx++}`);
+    params.push(`%${filters.journey_type}%`);
+  }
+
+  if (filters.payment_type) {
+    conditions.push(`pt.name ILIKE $${idx++}`);
+    params.push(`%${filters.payment_type}%`);
+  }
+
+  const whereClause = `
+    WHERE ${tabWhere}
+    ${conditions.length ? "AND " + conditions.join(" AND ") : ""}
+  `;
+
+  // 🔢 COUNT QUERY
+  const countSql = `
+    SELECT COUNT(*) AS total
+    FROM bookings b
+    LEFT JOIN booking_statuses bs ON b.booking_status_id = bs.id
+    LEFT JOIN journey_types jt ON b.journey_type_id = jt.id
+    LEFT JOIN payment_types pt ON b.payment_type_id = pt.id
+    LEFT JOIN accounts a ON b.account_id = a.id
+    LEFT JOIN drivers d ON b.driver_id = d.id
+    LEFT JOIN vehicle_types vt ON b.vehicle_type_id = vt.id
+    ${whereClause}
+  `;
+
+  const countResult = await pool.query(countSql, params);
+  const total = parseInt(countResult.rows[0].total);
+
+  // 📦 DATA QUERY
+  const dataSql = `
+    ${ENRICHED_SELECT}
+    ${whereClause}
+    ORDER BY b.id DESC
+    OFFSET $${idx++} LIMIT $${idx++}
+  `;
+
+  params.push(offset, limit);
+
+  const result = await pool.query(dataSql, params);
+
+  return { rows: result.rows, total };
+};
+
+const getBookingByIdEnriched = async (id) => {
+  const sql = `
+    ${ENRICHED_SELECT}
+    WHERE b.id = $1
+  `;
+  const res = await pool.query(sql, [id]);
+  return res.rows[0];
+};
 module.exports = {
   pool,
   insertBookingRow,
@@ -242,4 +370,6 @@ module.exports = {
   getRecentBookings,
   getQuotedBookings,
   getWebBookings,
+  getBookingsByTab,
+  getBookingByIdEnriched
 };

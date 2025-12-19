@@ -4,5 +4,7 @@ const router = express.Router();
 const ctrl = require("../controllers/bookingController");
 
 router.post("/add", ctrl.createBooking);
-router.get("/get", ctrl.getBookingSections);
+router.get("/get/:id", ctrl.getBookingSections);
+router.get("/getbytabs/:id", ctrl.getBookingByTabs);
+
 module.exports = router;

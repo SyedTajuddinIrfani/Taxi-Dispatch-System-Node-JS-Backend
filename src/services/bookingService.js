@@ -3,6 +3,7 @@ const {
   insertBookingRow,
   updateBooking,
   findBookingById,
+  getBookingByIdEnriched
 } = require("../models/bookingModel");
 
 const DEFAULT_EMPLOYEE_ID = 2;
@@ -234,9 +235,11 @@ async function createSimpleBooking(payload) {
     if (customerId) normalized.customer_id = customerId;
 
     const inserted = await createBookingRow(pool, normalized);
+    const enriched = await getBookingByIdEnriched(inserted.id);
     await pool.query("COMMIT");
 
     return { booking: [inserted] };
+    // return { bookings: [enriched] };
   } catch (err) {
     await pool.query("ROLLBACK");
     throw err;
@@ -298,9 +301,13 @@ async function createTwoWayBooking(payload) {
 
     const retInserted = await createBookingRow(pool, returnBooking);
 
+
+    const primaryEnriched = await getBookingByIdEnriched(primary.id);
+    const returnEnriched = await getBookingByIdEnriched(retInserted.id);
     await pool.query("COMMIT");
 
     return { booking: [primary, retInserted] };
+    // return { bookings: [primaryEnriched, returnEnriched] };
   } catch (err) {
     await pool.query("ROLLBACK");
     throw err;
