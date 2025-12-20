@@ -155,11 +155,11 @@ const EnumerationsModel = {
       subsidiaries: subsidiaries.rows,
       drivers: drivers.rows,
       booking_tabs: booking_tabs.rows,
-      // fare_configurations: fare_configurations.rows,
-      // fixed_fares: fixed_fares.rows,
-      // plot_fares: plot_fares.rows,
-      // fare_by_vehicles: fare_by_vehicles.rows,
-      // airport_charges: airport_charges.rows,
+      fare_configurations: fare_configurations.rows,
+      fixed_fares: fixed_fares.rows,
+      plot_fares: plot_fares.rows,
+      fare_by_vehicles: fare_by_vehicles.rows,
+      airport_charges: airport_charges.rows,
     };
   },
 };

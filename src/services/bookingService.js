@@ -3,10 +3,36 @@ const {
   insertBookingRow,
   updateBooking,
   findBookingById,
-  getBookingByIdEnriched
+  getBookingByIdEnriched,
 } = require("../models/bookingModel");
 
 const DEFAULT_EMPLOYEE_ID = 2;
+
+const parseJSONFields = (row) => {
+  if (!row) return row;
+
+  const jsonFields = [
+    "viapoints",
+    "restricted_drivers",
+    "notes",
+    "child_seat",
+    "skipped_bookings",
+  ];
+
+  const parsed = { ...row };
+
+  jsonFields.forEach((field) => {
+    if (parsed[field] && typeof parsed[field] === "string") {
+      try {
+        parsed[field] = JSON.parse(parsed[field]);
+      } catch {
+        parsed[field] = [];
+      }
+    }
+  });
+
+  return parsed;
+};
 
 // --------------------------------------------------
 // UNIQUE REFERENCE GENERATOR
@@ -236,10 +262,11 @@ async function createSimpleBooking(payload) {
 
     const inserted = await createBookingRow(pool, normalized);
     const enriched = await getBookingByIdEnriched(inserted.id);
+    const clean = parseJSONFields(enriched);
     await pool.query("COMMIT");
 
-    return { booking: [inserted] };
-    // return { bookings: [enriched] };
+    // return { booking: [inserted] };
+    return { bookings: [clean] };
   } catch (err) {
     await pool.query("ROLLBACK");
     throw err;
@@ -301,13 +328,15 @@ async function createTwoWayBooking(payload) {
 
     const retInserted = await createBookingRow(pool, returnBooking);
 
-
     const primaryEnriched = await getBookingByIdEnriched(primary.id);
     const returnEnriched = await getBookingByIdEnriched(retInserted.id);
+    const clean = parseJSONFields(primaryEnriched);
+    const returnClean = parseJSONFields(returnEnriched);
+
     await pool.query("COMMIT");
 
-    return { booking: [primary, retInserted] };
-    // return { bookings: [primaryEnriched, returnEnriched] };
+    // return { booking: [primary, retInserted] };
+    return { bookings: [clean, returnClean] };
   } catch (err) {
     await pool.query("ROLLBACK");
     throw err;
@@ -332,7 +361,8 @@ async function createMultiVehicleBooking(payload) {
       const res = await pool.query(
         `INSERT INTO customers (name,email,mobile,telephone,blacklist)
          VALUES ($1,$2,$3,$4,$5)
-         ON CONFLICT (email) DO UPDATE SET mobile=EXCLUDED.mobile
+         ON CONFLICT (email)
+         DO UPDATE SET mobile = EXCLUDED.mobile
          RETURNING id`,
         [
           c.name || payload.name,
@@ -347,24 +377,23 @@ async function createMultiVehicleBooking(payload) {
     }
 
     // -----------------------------
-    // INSERT BOOKINGS FOR EACH VEHICLE
+    // INSERT BOOKINGS PER VEHICLE
     // -----------------------------
-    const createdBookings = [];
+    const createdBookingIds = [];
 
     for (const vehicle of payload.multi_vehicle) {
       if (vehicle.exclude === true) continue;
 
-      // Clone payload for this one booking
       const bookingRow = {
         ...payload,
         vehicle_type_id: vehicle.vehicle_type,
       };
 
-      // Remove arrays (not db columns)
+      // Remove non-DB fields
       delete bookingRow.multi_vehicle;
       delete bookingRow.multi_reservation;
 
-      // Normalize (ASYNC)
+      // Normalize payload
       const normalized = await normalizeBookingPayload(bookingRow);
 
       normalized.customer_id = customerId;
@@ -372,12 +401,26 @@ async function createMultiVehicleBooking(payload) {
 
       // INSERT
       const inserted = await createBookingRow(pool, normalized);
-      createdBookings.push(inserted);
+      createdBookingIds.push(inserted.id);
+    }
+
+    // -----------------------------
+    // FETCH ENRICHED BOOKINGS
+    // -----------------------------
+    const enrichedBookings = [];
+
+    for (const id of createdBookingIds) {
+      const res = await getBookingByIdEnriched(id);
+      const parsed = parseJSONFields(res);
+      enrichedBookings.push(parsed);
     }
 
     await pool.query("COMMIT");
 
-    return { booking: createdBookings };
+    return {
+      status: true,
+      bookings: enrichedBookings,
+    };
   } catch (err) {
     await pool.query("ROLLBACK");
     throw err;
@@ -395,6 +438,9 @@ async function createMultiReservationBooking(payload) {
   try {
     await pool.query("BEGIN");
 
+    // -----------------------------
+    // CREATE / FETCH CUSTOMER
+    // -----------------------------
     const customerPayload = payload.customer?.[0] || payload.customer;
     let customerId = payload.customer_id || null;
 
@@ -402,7 +448,8 @@ async function createMultiReservationBooking(payload) {
       const res = await pool.query(
         `INSERT INTO customers (name,email,mobile,telephone,blacklist)
          VALUES ($1,$2,$3,$4,$5)
-         ON CONFLICT (email) DO UPDATE SET mobile=EXCLUDED.mobile
+         ON CONFLICT (email)
+         DO UPDATE SET mobile = EXCLUDED.mobile
          RETURNING id`,
         [
           customerPayload.name || payload.name,
@@ -415,12 +462,18 @@ async function createMultiReservationBooking(payload) {
       customerId = res.rows[0].id;
     }
 
+    // -----------------------------
+    // GENERATE MULTI BOOKING ID
+    // -----------------------------
     const multiBookingIdRes = await pool.query(
-      "SELECT nextval('bookings_id_seq') as nextid"
+      "SELECT nextval('bookings_id_seq') AS nextid"
     );
     const multiBookingId = parseInt(multiBookingIdRes.rows[0].nextid, 10);
 
-    const created = [];
+    // -----------------------------
+    // INSERT BOOKINGS
+    // -----------------------------
+    const createdBookingIds = [];
 
     for (const mr of payload.multi_reservation) {
       if (mr.exclude === true) continue;
@@ -430,6 +483,10 @@ async function createMultiReservationBooking(payload) {
       clone.pickup_date = mr.pickup_date;
       clone.pickup_time = mr.pickup_time;
 
+      // Remove non-DB fields
+      delete clone.multi_reservation;
+      delete clone.multi_vehicle;
+
       const normalized = await normalizeBookingPayload(clone);
 
       normalized.customer_id = customerId;
@@ -437,11 +494,27 @@ async function createMultiReservationBooking(payload) {
       normalized.reference_number = await genRef();
 
       const inserted = await createBookingRow(pool, normalized);
-      created.push(inserted);
+      createdBookingIds.push(inserted.id);
+    }
+
+    // -----------------------------
+    // FETCH ENRICHED BOOKINGS
+    // -----------------------------
+    const enrichedBookings = [];
+
+    for (const id of createdBookingIds) {
+      const res = await getBookingByIdEnriched(id);
+      const parsed = parseJSONFields(res);
+      enrichedBookings.push(parsed);
     }
 
     await pool.query("COMMIT");
-    return { booking: created };
+
+    return {
+      status: true,
+      bookings: enrichedBookings,
+      multi_booking_id: multiBookingId,
+    };
   } catch (err) {
     await pool.query("ROLLBACK");
     throw err;
