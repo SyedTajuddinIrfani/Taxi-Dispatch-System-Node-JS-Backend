@@ -344,6 +344,110 @@ async function createTwoWayBooking(payload) {
 }
 
 // --------------------------------------------------
+// ⭐⭐ RETURN WAY BOOKING (Journey Type = 3) ⭐⭐
+// --------------------------------------------------
+async function createReturnWayBooking(payload) {
+  try {
+    await pool.query("BEGIN");
+
+    /* ---------------- CUSTOMER ---------------- */
+    let customerId = payload.customer_id || null;
+    const c = payload.customer?.[0] || payload.customer;
+
+    if (!customerId && c) {
+      const res = await pool.query(
+        `INSERT INTO customers (name,email,mobile,telephone,blacklist)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (email)
+         DO UPDATE SET mobile = EXCLUDED.mobile
+         RETURNING id`,
+        [
+          c.name || payload.name,
+          c.email || payload.email,
+          c.mobile || payload.mobile,
+          c.telephone || payload.telephone,
+          c.blacklist || false,
+        ]
+      );
+      customerId = res.rows[0].id;
+    }
+
+    /* ---------------- OUTBOUND ---------------- */
+    const outbound = await normalizeBookingPayload({
+      ...payload,
+      journey_type_id: 3,
+    });
+
+    outbound.customer_id = customerId;
+    outbound.reference_number = await genRef();
+
+    const outboundInserted = await createBookingRow(pool, outbound);
+
+    /* ---------------- RETURN ---------------- */
+    const returnPayload = {
+      ...payload,
+
+      pickup: payload.return_pickup,
+      dropoff: payload.return_dropoff,
+
+      pickup_date: payload.return_pickup_date,
+      pickup_time: payload.return_pickup_time,
+
+      pickup_door_number: payload.return_pickup_door_number,
+      dropoff_door_number: payload.return_dropoff_door_number,
+
+      pickup_plot: payload.return_pickup_plot,
+      dropoff_plot: payload.return_dropoff_plot,
+
+      pickup_location_type_id: payload.return_pickup_location_type_id,
+      dropoff_location_type_id: payload.return_dropoff_location_type_id,
+
+      viapoints: payload.return_viapoints || [],
+      notes: payload.return_notes || [],
+      special_instructions: payload.return_special_instructions,
+
+      fares: payload.return_fares,
+      company_price: payload.return_company_price,
+      waiting_charges: payload.return_waiting_charges,
+      parking_charges: payload.return_parking_charges,
+      congestion_charges: payload.return_congestion_charges,
+      extra_drop_charges: payload.return_extra_drop_charges,
+      meet_and_greet: payload.return_meet_and_greet,
+
+      vehicle_type_id: payload.return_vehicle_type_id,
+      driver_id: payload.return_driver_id,
+
+      associated_booking: outboundInserted.id,
+      journey_type_id: 3,
+    };
+
+    const normalizedReturn = await normalizeBookingPayload(returnPayload);
+    normalizedReturn.customer_id = customerId;
+    normalizedReturn.reference_number = await genRef();
+
+    const returnInserted = await createBookingRow(pool, normalizedReturn);
+
+    /* ---------------- ENRICHED ---------------- */
+    const outboundEnriched = parseJSONFields(
+      await getBookingByIdEnriched(outboundInserted.id)
+    );
+    const returnEnriched = parseJSONFields(
+      await getBookingByIdEnriched(returnInserted.id)
+    );
+
+    await pool.query("COMMIT");
+
+    return {
+      bookings: [outboundEnriched],
+      return_booking: [returnEnriched],
+    };
+  } catch (err) {
+    await pool.query("ROLLBACK");
+    throw err;
+  }
+}
+
+// --------------------------------------------------
 // MULTI VEHICLE booking
 // --------------------------------------------------
 async function createMultiVehicleBooking(payload) {
@@ -585,6 +689,12 @@ async function create(payload) {
     } else {
       return createMultiVehicleBooking(payload);
     }
+  }
+  // -------------------------
+  // RETURN WAY (Journey Type = 3)
+  // -------------------------
+  if (payload.journey_type_id === 3 || payload.journey_type_id == "3") {
+    return createReturnWayBooking(payload);
   }
 
   // Two-way

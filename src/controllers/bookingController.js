@@ -49,8 +49,8 @@ exports.createBooking = async (req, res) => {
     const result = await bookingService.create(payload);
 
     // Parse JSON fields inside results before sending
-    if (result.booking) {
-      result.booking = result.booking.map(parseJSONFields);
+    if (result.bookings) {
+      result.bookings = result.bookings.map(parseJSONFields);
     }
     if (result.return_booking) {
       result.return_booking = result.return_booking.map(parseJSONFields);
