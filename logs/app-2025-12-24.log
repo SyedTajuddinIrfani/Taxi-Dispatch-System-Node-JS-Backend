@@ -1,0 +1,16 @@
+{"duration":503,"level":"info","message":"db-query","rows":1,"text":"SELECT \n        t.id,\n        t.template_type_id,\n        t.name,\n        t.subject,\n        t.content,\n        t.body,\n        tt.id as template_type_id,\n        tt.name as template_type_name\n       FROM templates t\n       JOIN template_types tt ON t.template_type_id = tt.id\n       WHERE t.id = $1","timestamp":"2025-12-24T11:43:57.520Z"}
+{"level":"info","message":"GET /api/templates/template_setting?id=16 200 525.543 ms","timestamp":"2025-12-24T11:43:57.558Z"}
+{"duration":1606,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-12-24T11:44:02.607Z"}
+{"level":"info","message":"GET /api/location-types 200 1622.181 ms","timestamp":"2025-12-24T11:44:02.624Z"}
+{"duration":1633,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-12-24T11:44:02.629Z"}
+{"level":"info","message":"GET /api/location-types 200 1635.767 ms","timestamp":"2025-12-24T11:44:02.631Z"}
+{"duration":79,"level":"info","message":"db-query","rows":9,"text":"SELECT id, name \n       FROM templates \n       WHERE template_type_id = $1\n       ORDER BY id ASC","timestamp":"2025-12-24T12:10:29.916Z"}
+{"level":"info","message":"GET /api/templates/get_templates_by_types?template_type_id=2 200 83.690 ms","timestamp":"2025-12-24T12:10:29.918Z"}
+{"duration":6,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-12-24T12:37:08.537Z"}
+{"level":"info","message":"GET /api/location-types 200 11.721 ms","timestamp":"2025-12-24T12:37:08.543Z"}
+{"duration":61,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-12-24T12:37:08.593Z"}
+{"level":"info","message":"GET /api/location-types 200 61.881 ms","timestamp":"2025-12-24T12:37:08.595Z"}
+{"duration":9,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-12-24T12:37:23.009Z"}
+{"level":"info","message":"GET /api/location-types 200 19.390 ms","timestamp":"2025-12-24T12:37:23.019Z"}
+{"duration":66,"level":"info","message":"db-query","rows":26,"text":"SELECT * FROM location_types","timestamp":"2025-12-24T12:37:23.070Z"}
+{"level":"info","message":"GET /api/location-types 200 67.548 ms","timestamp":"2025-12-24T12:37:23.072Z"}

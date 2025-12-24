@@ -1,6 +1,6 @@
 const axios = require("axios");
 
-const BASE_URL = "http://192.168.110.5:5000/api";
+const BASE_URL = "http://192.168.110.3:5000/api";
 
 exports.getCombinedData = async (req, res) => {
   try {
@@ -39,7 +39,7 @@ exports.getCombinedData = async (req, res) => {
 
 // const axios = require("axios");
 // const redis = require("../config/redis"); // <-- your redis.js file
-// const BASE_URL = "http://192.168.110.5:5000/api";
+// const BASE_URL = "http://192.168.110.3:5000/api";
 
 // exports.getCombinedData = async (req, res) => {
 //   try {

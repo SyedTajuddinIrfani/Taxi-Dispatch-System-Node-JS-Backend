@@ -2,7 +2,7 @@ const Driver = require("../models/driverModel");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const pool = require("../db");
-const BASE_URL = process.env.BASE_URL || "http://192.168.110.5:5000/uploads/";
+const BASE_URL = process.env.BASE_URL || "http://192.168.110.3:5000/uploads/";
 
 // 🔹 Helper: Recursively convert empty strings ("") to null
 function cleanEmptyToNull(obj) {
